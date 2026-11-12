@@ -93,6 +93,7 @@ describe('renderAnswer', () => {
     const repaired = renderAnswer(FIXED_SCOPE_CONFIG, sample, SKINCARE_POSTS, COMPONENTS, POINT_CATALOG, DEMO_AS_OF_DATE)
     expect(broken.sections.flatMap((section) => section.points).map((point) => point.id)).not.toContain('wait-film')
     expect(broken.omittedPoints.find((point) => point.pointKey === 'wait-film')?.reason).toContain('用法类')
+    expect(broken.omittedPoints.find((point) => point.pointKey === 'wait-film')?.reason).toContain('「油皮」组')
     expect(repaired.sections.flatMap((section) => section.points).map((point) => point.id)).toContain('wait-film')
     expect(repaired.sections.flatMap((section) => section.points).find((point) => point.id === 'wait-film')?.evidenceIds).toContain('skin-post-23')
   })

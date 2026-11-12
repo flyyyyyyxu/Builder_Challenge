@@ -330,3 +330,4 @@ fieldset.s2-policy-control { margin: 0; padding: 0; border: 0; min-width: 72px; 
   .s2-modal-meta { grid-template-columns: 1fr; }
   .s2-edit-rule-list li { align-items: flex-start; }
 }
+.s2-editor-column { min-width: 0; }

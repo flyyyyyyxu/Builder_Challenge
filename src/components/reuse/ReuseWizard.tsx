@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft, ArrowRight, BadgeCheck, Boxes, Check, FileCheck2, LockKeyhole, Sparkles, X } from 'lucide-react'
-import { COMPONENTS, CAPABILITIES, DEMO_AS_OF_DATE, POINT_CATALOG, REUSABLE_RULES, SCENES, SKINCARE_POSTS, SKINCARE_SAMPLES, SKINCARE_TEMPLATE, USAGE_REUSE_TARGET } from '../../data'
+import { ArrowLeft, ArrowRight, BadgeCheck, Boxes, Check, LockKeyhole, Sparkles, X } from 'lucide-react'
+import { COMPONENTS, CAPABILITIES, DEMO_AS_OF_DATE, POINT_CATALOG, REUSABLE_RULES, SCENES, SKINCARE_POSTS, SKINCARE_SAMPLES, SKINCARE_TEMPLATE, TEMPLATE_DRAFT_VERSION, USAGE_REUSE_TARGET } from '../../data'
 import { getConfigVersion, renderAnswer, reuseReport as buildReuseReport } from '../../engine'
 import { useDemoStore, type ReuseWizardStep } from '../../store'
 import type { AnswerPoint, Query, RenderedAnswer, ReuseGroup, ReuseReport, StrategyConfig } from '../../types'
@@ -61,6 +61,8 @@ function ReuseWizard() {
   const selectedTemplate = selectedTemplateId === SKINCARE_TEMPLATE.id ? SKINCARE_TEMPLATE : null
   const targetScene = SCENES.find((scene) => scene.id === USAGE_REUSE_TARGET.id)!
   const sourceVersion = getConfigVersion(SKINCARE_TEMPLATE.config)
+  /** The fixed template equals the narrowed config; once that config is launched in 03, say so instead of calling it a bare snapshot. */
+  const sourceLaunched = useDemoStore((state) => state.launchedConfigVersion) === sourceVersion
   const targetConfig = useMemo(() => cloneForUsage(SKINCARE_TEMPLATE.config), [])
   const usageAnswer = useMemo(() => report ? renderAnswer(targetConfig, USAGE_QUERY, SKINCARE_POSTS, COMPONENTS, POINT_CATALOG, DEMO_AS_OF_DATE) : null, [report, targetConfig])
 
@@ -69,14 +71,21 @@ function ReuseWizard() {
     setReuseWizardStep(2)
   }
 
-  function confirmTarget() {
-    setReuseWizardStep(3)
-  }
-
   function generateReport() {
     if (!selectedTemplate) return
     setReuseReport(buildReuseReport(selectedTemplate, USAGE_REUSE_TARGET, COMPONENTS, CAPABILITIES, REUSABLE_RULES))
   }
+
+  /** Confirming the target goes straight to the checklist; there is nothing left to choose before it. */
+  function confirmTarget() {
+    generateReport()
+    setReuseWizardStep(3)
+  }
+
+  // Safety net: landing on step 3 any other way (e.g. after a reset of the report) still shows the checklist.
+  useEffect(() => {
+    if (reuseWizardStep === 3 && !report) generateReport()
+  }, [reuseWizardStep, report])
 
   const isReportReady = report !== null && usageAnswer !== null
 
@@ -100,14 +109,16 @@ function ReuseWizard() {
             <span className="reuse-radio" aria-hidden="true">{selectedTemplateId === SKINCARE_TEMPLATE.id && <span />}</span>
             <span className="reuse-template-choice-main"><strong>{SKINCARE_TEMPLATE.name}</strong><small>来源场景：护肤 · 选购怎么选 · 示例模板 ID：{SKINCARE_TEMPLATE.id}</small><span className="reuse-template-meta"><span><BadgeCheck size={12} />示例模板</span><span>配置指纹 <code>{sourceVersion}</code></span></span></span>
           </button>
-          <div className="reuse-source-boundary"><LockKeyhole size={15} /><span>来源配置取自固定模板快照（配置指纹 {sourceVersion}），不是当前可编辑草稿；模板没有发布或线上版本含义。</span></div>
+          <div className="reuse-source-boundary"><LockKeyhole size={15} />{sourceLaunched
+            ? <span>来源为已通过回归检查、正在灰度的 {TEMPLATE_DRAFT_VERSION}（0 回归，配置指纹 {sourceVersion}），复用的是已验证的版本，不是可编辑草稿。</span>
+            : <span>来源配置取自固定模板快照（配置指纹 {sourceVersion}），不是当前可编辑草稿；模板没有发布或线上版本含义。</span>}</div>
           <div className="reuse-step-actions"><span>下一步将确认目标“护肤 → 怎么使用”。</span><button type="button" className="reuse-button reuse-button-primary" onClick={chooseTemplate} disabled={!selectedTemplateId}>选用此模板并继续 <ArrowRight size={15} /></button></div>
         </section>
       )}
 
       {reuseWizardStep === 2 && (
         <section className="reuse-step-panel panel" aria-labelledby="reuse-target-title">
-          <div className="reuse-step-heading"><h2 id="reuse-target-title">确认目标场景和问题</h2><p>同一垂类下的另一个意图：护肤用法问题与选购问题共用帖子池和大部分组件，只需要调整呈现方式。</p></div>
+          <div className="reuse-step-heading"><h2 id="reuse-target-title">确认目标场景和问题</h2><p>回归检查发现用法类问题需要完整步骤、不能按肤质拆开，所以把它们拆成独立场景。同一垂类下，用法问题与选购问题共用帖子池和大部分组件，只需要调整呈现方式。</p></div>
           <div className="reuse-target-summary">
             <div className="reuse-scene-side"><span className="reuse-scene-label">来源模板</span><div className="reuse-scene-icon is-source"><SproutIcon /></div><strong>护肤 <i>→</i> 选购怎么选</strong><small>{SKINCARE_TEMPLATE.name} · {sourceVersion}</small></div>
             <div className="reuse-transfer-arrow"><ArrowRight size={19} /><span>复用已有能力</span></div>
@@ -124,7 +135,7 @@ function ReuseWizard() {
         <section className="reuse-report-stage" aria-labelledby="reuse-report-title">
           <div className="reuse-report-toolbar panel">
             <div><h2 id="reuse-report-title">复用清单</h2><p>护肤 · 选购怎么选 <ArrowRight size={13} /> {targetScene.vertical} · {targetScene.intent}</p></div>
-            <div className="reuse-report-actions"><button type="button" className="reuse-button reuse-button-quiet" onClick={() => setReuseWizardStep(2)}><ArrowLeft size={14} />返回目标确认</button><button type="button" className="reuse-button reuse-button-primary" onClick={generateReport}><FileCheck2 size={15} />{report ? '重新生成' : '生成复用清单'}</button></div>
+            <div className="reuse-report-actions"><button type="button" className="reuse-button reuse-button-quiet" onClick={() => setReuseWizardStep(2)}><ArrowLeft size={14} />返回目标确认</button></div>
           </div>
 
           {!isReportReady || !report ? (

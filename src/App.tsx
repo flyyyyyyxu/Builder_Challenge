@@ -36,7 +36,7 @@ function useStepProgress(): Record<StepPage, { done: boolean; status: string }> 
       : coverageRun.summary.regressed > 0
         ? { done: false, status: `发现 ${coverageRun.summary.regressed} 条回归` }
         : launchedVersion === coverageRun.configVersion
-          ? { done: true, status: `${TEMPLATE_DRAFT_VERSION} 已上线` }
+          ? { done: true, status: `${TEMPLATE_DRAFT_VERSION} 灰度中 · 5%` }
           : { done: true, status: '当前草稿无回归，待上线' }
   return {
     template: templateChanges > 0

@@ -65,13 +65,13 @@ const demoSteps = [
   {
     number: '01',
     title: '搭建卡片模板',
-    description: '以“油皮夏天防晒怎么选”为例，行业运营开启按肤质分组和踩坑提醒，答案卡预览即时变化，点开要点能看到引用了哪几篇笔记。',
+    description: '以“油皮夏天防晒怎么选”为例，行业运营开启按肤质分组和踩坑提醒，答案卡预览即时变化，点开要点能看到引用了哪几篇笔记；切换到商业化账号提议调整品牌说位置，与社区治理底线冲突时转为待讨论，而不是直接覆盖。',
     icon: SlidersHorizontal,
   },
   {
     number: '02',
     title: '配置筛选策略',
-    description: '按角色查看决定笔记能否入卡的规则；切换到商业化账号，演示它与社区治理的底线规则冲突时，如何转为待讨论而不是直接覆盖。',
+    description: '按角色查看决定笔记能否入卡的规则，生效顺序为社区治理底线、商业化、行业运营；调整时效或互动门槛，能看到哪些笔记新入卡、哪些被筛掉以及原因。',
     icon: Search,
   },
   {
@@ -111,7 +111,7 @@ export function ProductHome({ onEnterDemo, onOpenReuse, onOpenFeedback }: Produc
               <button type="button" className="intro-primary-cta" onClick={onEnterDemo}>进入策略工作台 <ArrowRight size={17} /></button>
               <a className="intro-secondary-cta" href="#solution">先看产品方案 <ArrowRight size={16} /></a>
             </div>
-            <div className="intro-audience-line"><UsersRound size={16} /><span>目标用户</span><strong>点点 · 商业化 · 电商 · 行业 · 社区</strong><i /> <strong>PM 与运营</strong></div>
+            <div className="intro-audience-line"><UsersRound size={16} /><span>首批用户</span><strong>行业运营 · 场景 PM</strong><i /><span>首期共建</span><strong>商业化 · 社区治理</strong></div>
           </div>
 
           <div className="intro-hero-visual" aria-label="展示一次答案策略回归定位和修复的示意图">
@@ -191,7 +191,7 @@ export function ProductHome({ onEnterDemo, onOpenReuse, onOpenFeedback }: Produc
             <div className="intro-solution-statement">
               <span className="intro-solution-mark"><Layers3 size={22} /></span>
               <h3>规则融合社区、业务和用户习惯，不由一个团队拍板。</h3>
-              <p>点点、商业化、电商、行业和社区的 PM 与运营，在各自权限内配置卡片模板、笔记筛选策略和总结校验规则（规划中）。演示以行业运营、商业化、社区治理三个角色为例；召回、排序和模型调优仍由研发与算法负责。</p>
+              <p>首批用户是改策略、跑回归的行业运营和场景 PM；商业化、社区治理首期一起接入，守各自负责的规则；电商等团队后续接入。大家在各自权限内配置卡片模板、笔记筛选策略和总结校验规则（规划中）；召回、排序和模型调优仍由研发与算法负责。</p>
               <button type="button" className="intro-text-link" onClick={onEnterDemo}>查看策略配置与答案预览 <ArrowRight size={15} /></button>
             </div>
             <div className="intro-value-stack">

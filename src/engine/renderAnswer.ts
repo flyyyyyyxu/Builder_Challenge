@@ -132,7 +132,7 @@ export function renderAnswer(
         pointKey: definition.key,
         text: definition.text,
         evidenceIds: evidence.map((post) => post.id),
-        reason: `按肤质分组也作用到了用法类问题，步骤被拆进各组，每组最多保留 ${config.presentation.groupPointLimit} 条，这一步被截掉了。`,
+        reason: `按肤质分组也作用到了用法类问题，步骤被并入「${persona}」组，每组最多保留 ${config.presentation.groupPointLimit} 条，这一步被截掉了。`,
         ruleId: 'persona-group-step-limit',
       })
       return false

@@ -21,7 +21,7 @@ const DELTA_RULES: Record<SampleResult['delta'], string> = {
 }
 const CATEGORY_HINTS: Partial<Record<QueryCategory, string>> = {
   选购类: '本场景的主体问题，覆盖不同肤质和使用场景',
-  用法类: '边界样例：检查规则会不会误伤非选购问题',
+  用法类: '选购入口实际也会接到的用法问题，检查规则会不会误伤它们',
 }
 
 function citationIssues(run: CoverageRun, side: 'Before' | 'After'): number {
@@ -82,6 +82,8 @@ function CoveragePage() {
     }
     setDraftConfig(nextConfig)
     executeRun(nextConfig, coverageRun, selectedResult?.sampleId ?? REGRESSION_SAMPLE_ID)
+    // Bring the summary (回归 1 → 0) back into view after the detail panel shrinks.
+    requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'smooth' }))
   }
 
   const backButtons = (
@@ -147,7 +149,7 @@ function CoveragePage() {
           <details className="cv-notes panel">
             <summary>指标口径与样例说明</summary>
             <ul>
-              <li><strong>样例怎么选：</strong>由场景负责人维护，来源是高频问题、典型人群、边界问题和线上投诉回流；期望要点独立标注，改动人不能自己判定通过。</li>
+              <li><strong>样例怎么选：</strong>由场景负责人维护，按这个场景实际接到的问题抽取：高频问题、典型人群、边界问题和线上投诉回流。选购入口也会接到少量用法类问题，所以样例里保留 2 条；期望要点独立标注，改动人不能自己判定通过。</li>
               <li><strong>期望要点覆盖：</strong>答案里出现该要点，并且至少有一条可追溯的引用。</li>
               <li><strong>引用问题：</strong>引用了超过 {STALE_REFERENCE_DAYS} 天的帖子（场景时效标准，不随草稿的时效窗口变化），或引用了未标注的合作内容。</li>
               <li><strong>边界：</strong>本页是规则模拟，只检查固定 mock 样例，不代表语义判断准确率、原帖真实性或上线收益。</li>
@@ -185,7 +187,7 @@ function SampleList({ run, selectedId, onSelect }: { run: CoverageRun; selectedI
         const samples = SKINCARE_SAMPLES.filter((sample) => sample.category === category)
         return (
           <div key={category} className="cv-list-group">
-            <div className="cv-list-heading" title={CATEGORY_HINTS[category]}>{category} · {samples.length}</div>
+            <div className="cv-list-heading">{category} · {samples.length}{CATEGORY_HINTS[category] && <small>{CATEGORY_HINTS[category]}</small>}</div>
             {samples.map((sample) => {
               const result = run.results.find((item) => item.sampleId === sample.id)
               if (!result) return null

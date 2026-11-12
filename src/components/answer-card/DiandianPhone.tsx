@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { AudioLines, Camera, ChevronLeft, ChevronRight, CirclePlus, Copy, Ellipsis, FileSearch, FileText, RotateCcw, Share2, Star, ThumbsDown } from 'lucide-react'
+import { BRAND_VOICES } from '../../data'
 import { ROLE_TAB_LABELS } from '../../store'
 import type { AnswerPoint, Post, QueryCategory, RenderedAnswer, StrategyConfig } from '../../types'
 import { CARD_SLOTS, bodySlotOrder, hiddenSlotReason, type CardSlot, type SlotId } from './slots'
@@ -75,6 +76,24 @@ export function DiandianPhone({
     if (top < chat.scrollTop || bottom > chat.scrollTop + chat.clientHeight) chat.scrollTo({ top, behavior: 'smooth' })
   }, [focusedSlot])
 
+  // 品牌说: only when its sponsored post survived the step-02 filters (allowed, persona match, community cap).
+  const brandVoice = useMemo(() => {
+    const voice = BRAND_VOICES.find((entry) => answer.eligibleEvidenceIds.includes(entry.postId))
+    if (!voice) return null
+    const point: AnswerPoint = {
+      id: `brand-voice-${voice.postId}`,
+      text: voice.statement,
+      componentId: 'brand-voice',
+      evidenceIds: [voice.postId],
+      change: 'unchanged',
+      trace: [{
+        ruleId: 'allow-sponsored', label: '合作内容准入', source: '本地规则模拟（示例）', owner: '商业化（示例）', matched: true,
+        explanation: '合作帖子通过了商业化准入、人群匹配和社区治理的入卡上限，品牌说按「不早于结论」的位置呈现，并始终带合作标识。',
+      }],
+    }
+    return { voice, point }
+  }, [answer])
+
   const hasRealPoints = answer.sections.some((section) => section.points.some((point) => !ghostReasons?.has(point.id)))
   const body = bodySlotOrder(config)
   let slotIndex = 1
@@ -124,13 +143,33 @@ export function DiandianPhone({
           </>
         )
       }
-      case 'step-list':
+      case 'step-list': {
+        const stepItem = (point: AnswerPoint) => <li key={point.id} className={ghostReasons?.has(point.id) ? 'is-ghost' : ''}>{pointButton(point)}</li>
+        // When skin-type grouping also covers 用法类 questions, steps are bucketed per persona and capped — show that split.
+        const p = config.presentation
+        const stepsGrouped = p.groupByPersona && p.groupByPersonaAppliesTo.includes(query.category) && query.category === '用法类'
+        if (!stepsGrouped) {
+          return (
+            <>
+              <div className="dd-sec-title">{slot.emoji} {slot.heading}</div>
+              <ol className="dd-steps">{section.points.map(stepItem)}</ol>
+            </>
+          )
+        }
+        const groups = new Map<string, AnswerPoint[]>()
+        for (const point of section.points) groups.set(point.persona ?? '通用', [...(groups.get(point.persona ?? '通用') ?? []), point])
         return (
           <>
-            <div className="dd-sec-title">{slot.emoji} {slot.heading}</div>
-            <ol className="dd-steps">{section.points.map((point) => <li key={point.id} className={ghostReasons?.has(point.id) ? 'is-ghost' : ''}>{pointButton(point)}</li>)}</ol>
+            <div className="dd-sec-title">{slot.emoji} {slot.heading}<span className="dd-sec-note">已按肤质拆分</span></div>
+            {[...groups.entries()].map(([persona, points]) => (
+              <div className="dd-group" key={persona}>
+                <div className="dd-group-head"><span className="dd-group-name">{persona}</span><span className="dd-group-cap">每组最多 {p.groupPointLimit} 步</span></div>
+                <ol className="dd-steps">{points.map(stepItem)}</ol>
+              </div>
+            ))}
           </>
         )
+      }
       case 'pitfall-card':
         return (
           <div className="dd-tip">
@@ -172,8 +211,22 @@ export function DiandianPhone({
             {!hasRealPoints && <div className="dd-empty"><FileSearch size={14} /><span>当前策略条件下没有足够的引用支持此答案。可调整来源条件或隐藏无来源结论。</span></div>}
 
             {body.map((id) => {
-              const section = sectionsById.get(id)
               const slot = CARD_SLOTS[id]
+              if (id === 'brand-voice') {
+                if (brandVoice) {
+                  return (
+                    <SlotFrame key={id} slot={slot} index={slotIndex++} show={showSlots} focused={focusedSlot === id} onSlotClick={onSlotClick} slotRef={setSlotRef(id)}>
+                      <div className="dd-brand">
+                        <div className="dd-brand-head"><span className="dd-brand-tag">品牌说</span><strong>{brandVoice.voice.brand}</strong></div>
+                        {pointButton(brandVoice.point)}
+                      </div>
+                    </SlotFrame>
+                  )
+                }
+                if (!showSlots && focusedSlot !== id) return null
+                return <SlotFrame key={id} slot={slot} index={slotIndex++} show={showSlots} focused={focusedSlot === id} onSlotClick={onSlotClick} slotRef={setSlotRef(id)} hidden={hiddenSlotReason(id, config, query.category, answer)} />
+              }
+              const section = sectionsById.get(id)
               if (section && section.points.length > 0) {
                 return <SlotFrame key={id} slot={slot} index={slotIndex++} show={showSlots} focused={focusedSlot === id} onSlotClick={onSlotClick} slotRef={setSlotRef(id)}>{renderSection(section)}</SlotFrame>
               }

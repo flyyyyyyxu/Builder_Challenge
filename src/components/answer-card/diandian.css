@@ -95,3 +95,13 @@ button.dd-slot-tag:hover { background: #ffe1e6; }
 @keyframes dd-pulse { 0% { background-color: #d6f2e7; box-shadow: 0 0 0 3px rgba(63,184,143,.22); } 100% { box-shadow: 0 0 0 0 rgba(63,184,143,0); } }
 @media (prefers-reduced-motion: reduce) { .dd-pt.is-pulsing { animation: none; } .dd-slot { transition: none; } }
 @media (max-width: 560px) { .dd-phone { width: 100%; } .dd-screen { height: 600px; } }
+
+/* 品牌说：商业化负责的合作品牌表述，位于结论之后，始终带合作标识。 */
+.dd-brand { padding: 8px 10px 7px; background: #f6f4fb; border: 1px solid #e6e1f2; border-radius: 11px; }
+.dd-brand-head { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; color: #4a4560; font-size: 12px; }
+.dd-brand-head strong { font-weight: 600; }
+.dd-brand-tag { padding: 1px 6px; color: #6c5fa3; background: #ebe6f7; border-radius: 999px; font-size: 10.5px; font-weight: 600; }
+
+/* 回归预览：分组误用到用法类问题时，步骤被并入肤质组并截断。 */
+.dd-sec-note { margin-left: 6px; padding: 1px 6px; color: #b4492f; background: #fdece7; border-radius: 999px; font-size: 10px; font-weight: 500; vertical-align: 2px; }
+.dd-group-cap { margin-left: auto; color: #b4492f; font-size: 10px; }

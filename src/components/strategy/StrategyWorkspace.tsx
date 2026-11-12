@@ -209,10 +209,23 @@ function CategoryChoices({ value, onChange }: { value: QueryCategory[]; onChange
 
 /* ───────────── Step 01 · 卡片模板 ───────────── */
 
+/** Attributes template changes to the role that owns each field, not to whoever is signed in now. */
+function templateChangeOwners(config: StrategyConfig): Array<[DemoRole, number]> {
+  const counts = new Map<DemoRole, number>()
+  for (const path of STAGE_PATHS.template) {
+    if (!isModified(config, path)) continue
+    const owner = STRATEGY_ITEMS_BY_PATH[path].setBy.role as DemoRole
+    counts.set(owner, (counts.get(owner) ?? 0) + 1)
+  }
+  return [...counts]
+}
+
 function TemplateHeader({ config }: { config: StrategyConfig }) {
   const [historyOpen, setHistoryOpen] = useState(false)
-  const role = useDemoStore((state) => state.role)
   const changed = changedLabels(config, 'template')
+  const owners = templateChangeOwners(config)
+  const ownerSummary = owners.map(([owner, count]) => `${ROLE_TAB_LABELS[owner]}改动 ${count} 项`).join(' · ')
+  const ownerNames = owners.map(([owner]) => ROLE_TAB_LABELS[owner]).join('、')
   return (
     <div className="s2-template-header">
       <div className="s2-template-library" role="list" aria-label="卡片模板库">
@@ -224,12 +237,12 @@ function TemplateHeader({ config }: { config: StrategyConfig }) {
       </div>
       <div className="s2-version-bar">
         <span>场景锁定 <strong>{TEMPLATE_PINNED_VERSION}</strong></span>
-        {changed.length > 0 && <span className="s2-version-draft">草稿 <strong>{TEMPLATE_DRAFT_VERSION}</strong> · {ROLE_TAB_LABELS[role]}改动 {changed.length} 项</span>}
+        {changed.length > 0 && <span className="s2-version-draft">草稿 <strong>{TEMPLATE_DRAFT_VERSION}</strong> · {ownerSummary}</span>}
         <button type="button" className="s2-text-button" aria-expanded={historyOpen} onClick={() => setHistoryOpen((open) => !open)}><History size={13} />版本历史</button>
       </div>
       {historyOpen && (
         <ol className="s2-version-history">
-          {changed.length > 0 && <li className="is-draft"><span>{TEMPLATE_DRAFT_VERSION} 草稿</span><span>{ROLE_TAB_LABELS[role]}</span><span>{changed.join('、')}</span><span>未提交</span></li>}
+          {changed.length > 0 && <li className="is-draft"><span>{TEMPLATE_DRAFT_VERSION} 草稿</span><span>{ownerNames}</span><span>{changed.join('、')}</span><span>未提交</span></li>}
           {TEMPLATE_VERSION_HISTORY.map((entry) => (
             <li key={`${entry.version}-${entry.role}`}><span>{entry.version}</span><span>{ROLE_TAB_LABELS[entry.role]}</span><span>{entry.note}</span><span>{entry.date}</span></li>
           ))}
@@ -274,6 +287,11 @@ function TemplateOpsSlots({ config, onChange }: { config: StrategyConfig; onChan
             <span className="s2-order-number"><LockKeyhole size={11} /></span>
             <span>来源底栏</span>
             <span className="s2-order-off">固定在卡片顶部 · 社区治理锁定</span>
+          </li>
+          <li className="is-locked" onMouseEnter={() => setFocusedSlot('brand-voice')} onMouseLeave={() => setFocusedSlot(null)}>
+            <span className="s2-order-number"><LockKeyhole size={11} /></span>
+            <span>品牌说</span>
+            <span className="s2-order-off">紧跟一句话结论 · 商业化负责，不早于结论</span>
           </li>
           {editableOrder.map((id, position) => {
             const toggle = COMPONENT_TOGGLES[id]
@@ -596,6 +614,7 @@ export function StrategyWorkspace({ stage, onNavigate }: { stage: WorkspaceStage
   return (
     <>
       <div className="s2-workspace-grid">
+        <div className="s2-editor-column">
         <section className="panel s2-editor-panel" aria-labelledby="stage-editor-title">
           <div className="s2-panel-heading">
             <div><h2 id="stage-editor-title">{copy.title}</h2><p>{copy.description}</p></div>
@@ -625,6 +644,9 @@ export function StrategyWorkspace({ stage, onNavigate }: { stage: WorkspaceStage
             <button type="button" className="s2-reset-button" onClick={resetPage} disabled={stageChanges.length === 0}><RotateCcw size={14} />恢复本页默认</button>
           </div>
         </section>
+        {/* Right under the controls, so the effect of a filter change is visible without scrolling past the phone. */}
+        {stage === 'filter' && <PostChanges before={filterBaseRaw} after={afterRaw} posts={SKINCARE_POSTS} />}
+        </div>
 
         <aside className="s2-preview-column" aria-label="答案卡预览">
           <div className="s2-preview-heading"><h2>答案卡预览</h2></div>
@@ -646,9 +668,8 @@ export function StrategyWorkspace({ stage, onNavigate }: { stage: WorkspaceStage
             templateLabel={templateLabel}
             focusedSlot={focusedSlot}
             onSlotClick={openSlot}
-            defaultShowSlots={stage === 'template'}
+            defaultShowSlots={false}
           />
-          {stage === 'filter' && <PostChanges before={filterBaseRaw} after={afterRaw} posts={SKINCARE_POSTS} />}
         </aside>
       </div>
 

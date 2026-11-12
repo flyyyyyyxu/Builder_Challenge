@@ -1,8 +1,8 @@
 import type { DemoRole } from '../../store'
 import type { ConfigPath, QueryCategory, RenderedAnswer, StrategyConfig } from '../../types'
 
-/** The five template slots of the 护肤 answer card; the 点点 card only re-skins them, it never adds new ones. */
-export type SlotId = 'conclusion' | 'persona-groups' | 'step-list' | 'pitfall-card' | 'source-footer'
+/** The six template slots of the 护肤 answer card; the 点点 card only re-skins them, it never adds new ones. */
+export type SlotId = 'conclusion' | 'brand-voice' | 'persona-groups' | 'step-list' | 'pitfall-card' | 'source-footer'
 
 export interface CardSlot {
   id: SlotId
@@ -24,6 +24,11 @@ export const CARD_SLOTS: Record<SlotId, CardSlot> = {
     id: 'conclusion', name: '一句话结论', heading: '', emoji: '', owner: 'industry_ops',
     paths: ['presentation.showConclusion', 'presentation.componentOrder'],
     binding: '开关「一句话结论」',
+  },
+  'brand-voice': {
+    id: 'brand-voice', name: '品牌说', heading: '品牌说', emoji: '', owner: 'ads',
+    paths: ['guardrails.sponsoredPosition', 'evidence.allowSponsored', 'evidence.sponsoredPersonaMatch'],
+    binding: '位置由商业化提议、受社区治理底线约束（不早于结论）',
   },
   'persona-groups': {
     id: 'persona-groups', name: '按肤质分组', heading: '按肤质挑质地', emoji: '✨', owner: 'industry_ops',
@@ -52,10 +57,13 @@ export const CARD_SLOTS: Record<SlotId, CardSlot> = {
   },
 }
 
-/** Orderable body slots, in template order; the reference row is pinned on top. */
+/** Body slots in template order; the reference row is pinned on top and 品牌说 sits right after the conclusion. */
 export function bodySlotOrder(config: StrategyConfig): SlotId[] {
-  const ids = config.presentation.componentOrder.filter((id): id is SlotId => id in CARD_SLOTS && id !== 'source-footer')
+  const ids = config.presentation.componentOrder.filter((id): id is SlotId => id in CARD_SLOTS && id !== 'source-footer' && id !== 'brand-voice')
   for (const id of ['conclusion', 'persona-groups', 'step-list', 'pitfall-card'] as SlotId[]) if (!ids.includes(id)) ids.push(id)
+  const conclusionAt = ids.indexOf('conclusion')
+  const brandAt = config.guardrails.sponsoredPosition === 'beforeConclusion' ? conclusionAt : conclusionAt + 1
+  ids.splice(brandAt, 0, 'brand-voice')
   return ids
 }
 
@@ -70,6 +78,7 @@ export function slotForPath(path: ConfigPath): SlotId | null {
 export function hiddenSlotReason(slot: SlotId, config: StrategyConfig, category: QueryCategory, answer: RenderedAnswer): string {
   const p = config.presentation
   if (slot === 'conclusion' && !p.showConclusion) return '模板中已关闭'
+  if (slot === 'brand-voice') return config.evidence.allowSponsored ? '这道题没有通过筛选的合作内容' : '商业化未允许合作内容进入候选'
   if (slot === 'pitfall-card' && !p.showPitfall) return '模板中已关闭'
   if (slot === 'persona-groups') {
     if (!p.groupByPersona) return '模板中已关闭'
