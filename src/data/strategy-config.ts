@@ -8,6 +8,10 @@ export const BASELINE_CONFIG: StrategyConfig = {
     includeCounterEvidence: true,
     labelSponsored: true,
     allowSponsored: true,
+    minNoteLikes: 0,
+    preferMatchingPersona: false,
+    sponsoredPersonaMatch: true,
+    sponsoredCap: 1,
   },
   presentation: {
     groupByPersona: false,

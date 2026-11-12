@@ -45,6 +45,11 @@ type DemoStore = {
   /** Which role's slots/rules are being viewed on the template and strategy pages. */
   viewedRole: DemoRole
   draftConfig: StrategyConfig
+  /** Filter rules deleted from step 02 through the edit dialog; their config fields are set to a neutral value. */
+  removedFilterRules: string[]
+  /** Config fingerprint of the last saved draft, and of the version taken live (both mock; nothing is sent). */
+  savedConfigVersion: string | null
+  launchedConfigVersion: string | null
   previewVersion: PreviewVersion
   sourcePoint: AnswerPoint | null
   coverageRun: CoverageRun | null
@@ -59,6 +64,9 @@ type DemoStore = {
   navigate: (page: PageId) => void
   setViewedRole: (role: DemoRole) => void
   setDraftConfig: (config: StrategyConfig) => void
+  setRemovedFilterRules: (ids: string[]) => void
+  saveDraft: (configVersion: string) => void
+  launchDraft: (configVersion: string) => void
   setPreviewVersion: (version: PreviewVersion) => void
   openSource: (point: AnswerPoint) => void
   closeSource: () => void
@@ -79,6 +87,9 @@ export const useDemoStore = create<DemoStore>((set) => ({
   visitedPages: [],
   viewedRole: 'industry_ops',
   draftConfig: cloneBaseline(),
+  removedFilterRules: [],
+  savedConfigVersion: null,
+  launchedConfigVersion: null,
   previewVersion: 'after',
   sourcePoint: null,
   coverageRun: null,
@@ -93,6 +104,9 @@ export const useDemoStore = create<DemoStore>((set) => ({
   navigate: (activePage) => set((state) => ({ activePage, visitedPages: state.visitedPages.includes(activePage) ? state.visitedPages : [...state.visitedPages, activePage] })),
   setViewedRole: (viewedRole) => set({ viewedRole }),
   setDraftConfig: (draftConfig) => set({ draftConfig }),
+  setRemovedFilterRules: (removedFilterRules) => set({ removedFilterRules }),
+  saveDraft: (savedConfigVersion) => set({ savedConfigVersion }),
+  launchDraft: (launchedConfigVersion) => set({ launchedConfigVersion, savedConfigVersion: launchedConfigVersion }),
   setPreviewVersion: (previewVersion) => set({ previewVersion }),
   openSource: (sourcePoint) => set({ sourcePoint }),
   closeSource: () => set({ sourcePoint: null }),
@@ -101,7 +115,7 @@ export const useDemoStore = create<DemoStore>((set) => ({
   setReuseWizardStep: (reuseWizardStep) => set({ reuseWizardStep }),
   setSelectedTemplateId: (selectedTemplateId) => set({ selectedTemplateId, reuseWizardStep: 1, reuseReport: null }),
   setReuseReport: (reuseReport) => set({ reuseReport }),
-  resetStrategy: () => set({ draftConfig: cloneBaseline(), previewVersion: 'after', sourcePoint: null }),
+  resetStrategy: () => set({ draftConfig: cloneBaseline(), removedFilterRules: [], previewVersion: 'after', sourcePoint: null }),
   resetDemo: () => set({
     role: 'industry_ops',
     sponsoredProposal: null,
@@ -110,6 +124,9 @@ export const useDemoStore = create<DemoStore>((set) => ({
     visitedPages: [],
     viewedRole: 'industry_ops',
     draftConfig: cloneBaseline(),
+    removedFilterRules: [],
+    savedConfigVersion: null,
+    launchedConfigVersion: null,
     previewVersion: 'after',
     sourcePoint: null,
     coverageRun: null,

@@ -26,13 +26,21 @@ export function renderAnswer(
   const pointByKey = new Map(pointCatalog.map((point) => [point.key, point]))
   const filteredEvidence: FilteredEvidence[] = []
   const queryCandidates = posts.filter((post) => post.sceneId === query.sceneId && post.queryIds.includes(query.id))
-  const eligible = queryCandidates.filter((post) => {
+  let eligible = queryCandidates.filter((post) => {
     if (!config.evidence.allowedKinds.includes(post.kind)) {
       filteredEvidence.push({ evidenceId: post.id, reason: `来源类型“${post.kind === 'note' ? '笔记' : '评论'}”不在当前允许类型中。`, ruleId: 'allowed-content-kinds' })
       return false
     }
     if (!config.evidence.allowSponsored && post.sponsored) {
       filteredEvidence.push({ evidenceId: post.id, reason: '商业化策略未允许合作内容进入候选。', ruleId: 'allow-sponsored' })
+      return false
+    }
+    if (config.evidence.sponsoredPersonaMatch && post.sponsored && query.persona && post.persona && post.persona !== query.persona) {
+      filteredEvidence.push({ evidenceId: post.id, reason: `合作内容面向“${post.persona}”，与提问人群“${query.persona}”不匹配。`, ruleId: 'sponsored-persona-match' })
+      return false
+    }
+    if (config.evidence.minNoteLikes > 0 && post.kind === 'note' && post.likes < config.evidence.minNoteLikes) {
+      filteredEvidence.push({ evidenceId: post.id, reason: `笔记互动数 ${post.likes}，低于 ${config.evidence.minNoteLikes} 的门槛。`, ruleId: 'min-note-likes' })
       return false
     }
     if (config.evidence.freshnessDays !== '不限' && ageInDays(post.date, asOf) > config.evidence.freshnessDays) {
@@ -46,10 +54,25 @@ export function renderAnswer(
     return true
   })
 
+  const personaMatch = (post: Post) => Number(Boolean(query.persona) && post.persona === query.persona)
   eligible.sort((a, b) => {
+    const personaOrder = config.evidence.preferMatchingPersona ? personaMatch(b) - personaMatch(a) : 0
     const firstHandOrder = config.evidence.preferFirstHand ? Number(b.firstHand) - Number(a.firstHand) : 0
-    return firstHandOrder || b.date.localeCompare(a.date) || a.id.localeCompare(b.id)
+    return personaOrder || firstHandOrder || b.date.localeCompare(a.date) || a.id.localeCompare(b.id)
   })
+
+  // Community floor: at most N sponsored posts per card, keeping the highest-ranked ones.
+  const sponsoredCap = config.evidence.sponsoredCap
+  if (sponsoredCap !== '不限') {
+    let sponsoredSeen = 0
+    eligible = eligible.filter((post) => {
+      if (!post.sponsored) return true
+      sponsoredSeen += 1
+      if (sponsoredSeen <= sponsoredCap) return true
+      filteredEvidence.push({ evidenceId: post.id, reason: `每张答案卡最多 ${sponsoredCap} 条合作内容，这条排在上限之后。`, ruleId: 'sponsored-cap' })
+      return false
+    })
+  }
 
   const evidenceByPoint = new Map<string, Post[]>()
   for (const post of eligible) {

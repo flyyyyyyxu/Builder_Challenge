@@ -134,6 +134,29 @@ describe('renderAnswer', () => {
     expect(answer.sections.flatMap((section) => section.points).some((point) => point.evidenceIds.includes('skin-post-05'))).toBe(false)
     expect(answer.filteredEvidence.find((entry) => entry.evidenceId === 'skin-post-05')?.ruleId).toBe('allow-sponsored')
   })
+
+  it('filters notes below the industry-ops like threshold but never comments', () => {
+    const strict = { ...BASELINE_CONFIG, evidence: { ...BASELINE_CONFIG.evidence, minNoteLikes: 40 as const } }
+    const answer = renderAnswer(strict, SKINCARE_SAMPLES[0], SKINCARE_POSTS, COMPONENTS, POINT_CATALOG, DEMO_AS_OF_DATE)
+    const byLikes = answer.filteredEvidence.filter((entry) => entry.ruleId === 'min-note-likes').map((entry) => entry.evidenceId).sort()
+    expect(byLikes).toEqual(['skin-post-01', 'skin-post-05', 'skin-post-07'])
+    expect(answer.eligibleEvidenceIds).toContain('skin-post-04')
+  })
+
+  it('drops sponsored posts aimed at another persona when the commercial role requires a match', () => {
+    const dryQuestion = { ...SKINCARE_SAMPLES[0], persona: '干皮' }
+    const answer = renderAnswer(BASELINE_CONFIG, dryQuestion, SKINCARE_POSTS, COMPONENTS, POINT_CATALOG, DEMO_AS_OF_DATE)
+    expect(answer.filteredEvidence.find((entry) => entry.evidenceId === 'skin-post-05')?.ruleId).toBe('sponsored-persona-match')
+    const off = { ...BASELINE_CONFIG, evidence: { ...BASELINE_CONFIG.evidence, sponsoredPersonaMatch: false } }
+    expect(renderAnswer(off, dryQuestion, SKINCARE_POSTS, COMPONENTS, POINT_CATALOG, DEMO_AS_OF_DATE).eligibleEvidenceIds).toContain('skin-post-05')
+  })
+
+  it('caps sponsored posts per card at the community limit, keeping the highest-ranked one', () => {
+    const extra = { ...SKINCARE_POSTS.find((post) => post.id === 'skin-post-05')!, id: 'skin-post-extra', date: '2026-06-01' }
+    const answer = renderAnswer(BASELINE_CONFIG, SKINCARE_SAMPLES[0], [...SKINCARE_POSTS, extra], COMPONENTS, POINT_CATALOG, DEMO_AS_OF_DATE)
+    expect(answer.eligibleEvidenceIds).toContain('skin-post-05')
+    expect(answer.filteredEvidence.find((entry) => entry.evidenceId === 'skin-post-extra')?.ruleId).toBe('sponsored-cap')
+  })
 })
 
 describe('runCoverageCheck', () => {

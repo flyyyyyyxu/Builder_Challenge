@@ -6,6 +6,8 @@ export type ContentKind = 'note' | 'comment'
 export type Stance = '推荐' | '不推荐' | '踩坑' | '中立'
 export type ComponentStatus = 'existing' | 'planned'
 export type FreshnessDays = 90 | 180 | 365 | '不限'
+export type MinNoteLikes = 0 | 20 | 40
+export type SponsoredCap = 1 | 2 | '不限'
 export type ChangeKind = 'added' | 'removed' | 'unchanged'
 export type ConflictStatus = 'needs_discussion'
 
@@ -46,6 +48,10 @@ export type ConfigPath =
   | 'evidence.includeCounterEvidence'
   | 'evidence.labelSponsored'
   | 'evidence.allowSponsored'
+  | 'evidence.minNoteLikes'
+  | 'evidence.preferMatchingPersona'
+  | 'evidence.sponsoredPersonaMatch'
+  | 'evidence.sponsoredCap'
   | 'presentation.groupByPersona'
   | 'presentation.groupByPersonaAppliesTo'
   | 'presentation.showPitfall'
@@ -63,6 +69,14 @@ export interface StrategyConfig {
     labelSponsored: boolean
     /** Commercial-owned: whether partner (sponsored) posts may enter the candidate pool at all. */
     allowSponsored: boolean
+    /** Industry-ops: notes below this like count are filtered out; comments are exempt. 0 = no threshold. */
+    minNoteLikes: MinNoteLikes
+    /** Industry-ops: rank posts whose persona matches the asker's (e.g. 油皮) ahead of others. Ranking only. */
+    preferMatchingPersona: boolean
+    /** Commercial: a sponsored post only enters when its target persona matches the question's persona. */
+    sponsoredPersonaMatch: boolean
+    /** Community floor: max sponsored posts per answer card. */
+    sponsoredCap: SponsoredCap
   }
   presentation: {
     groupByPersona: boolean

@@ -6,6 +6,7 @@ import { getConfigVersion, runCoverageCheck } from '../../engine'
 import { useDemoStore, type PreviewVersion } from '../../store'
 import { AnswerPreview } from '../strategy/AnswerPreview'
 import { EvidenceDrawer } from '../strategy/EvidenceDrawer'
+import { ReleaseActions } from './ReleaseActions'
 import type { AnswerPoint, CoverageRun, QueryCategory, Sample, SampleResult, StrategyConfig } from '../../types'
 import './coverage.css'
 
@@ -113,7 +114,7 @@ function CoveragePage() {
           <div className="cv-empty-actions">
             {draftModified
               ? <button type="button" className="cv-button cv-button-primary" onClick={handleRun}><ClipboardCheck size={15} />运行 8 个样例</button>
-              : <><button type="button" className="cv-button cv-button-quiet" onClick={() => navigate('template')}><ArrowLeft size={14} />自己去改</button><button type="button" className="cv-button cv-button-primary" onClick={handleRunWithDemoChange}><ClipboardCheck size={15} />载入演示改动并运行</button></>}
+              : <button type="button" className="cv-button cv-button-primary" onClick={handleRunWithDemoChange}><ClipboardCheck size={15} />开始运行</button>}
           </div>
         </div>
       ) : (
@@ -132,7 +133,7 @@ function CoveragePage() {
                 previousScope={coverageRun.configSnapshot.presentation.groupByPersonaAppliesTo}
                 isStale={isStale}
                 recovered={recovered}
-                hasRegression={coverageRun.summary.regressed > 0}
+                run={coverageRun}
                 onNarrowAndRerun={handleNarrowAndRerun}
                 onRun={handleRun}
                 backButtons={backButtons}
@@ -203,7 +204,7 @@ function SampleList({ run, selectedId, onSelect }: { run: CoverageRun; selectedI
   )
 }
 
-function CoverageDetail({ sample, result, runSnapshot, currentDraft, previousScope, isStale, recovered, hasRegression, onNarrowAndRerun, onRun, backButtons, onContinue }: {
+function CoverageDetail({ sample, result, runSnapshot, currentDraft, previousScope, isStale, recovered, run, onNarrowAndRerun, onRun, backButtons, onContinue }: {
   sample: Sample
   result: SampleResult
   runSnapshot: StrategyConfig
@@ -211,7 +212,7 @@ function CoverageDetail({ sample, result, runSnapshot, currentDraft, previousSco
   previousScope: QueryCategory[]
   isStale: boolean
   recovered: boolean
-  hasRegression: boolean
+  run: CoverageRun
   onNarrowAndRerun: () => void
   onRun: () => void
   backButtons: React.ReactNode
@@ -308,8 +309,8 @@ function CoverageDetail({ sample, result, runSnapshot, currentDraft, previousSco
       </div>
 
       <footer className="cv-detail-foot">
-        {backButtons}
-        {!hasRegression && !isStale && <button type="button" className="cv-button cv-button-primary" onClick={onContinue}>复用到同类新场景 <ArrowRight size={14} /></button>}
+        <div className="cv-detail-back">{backButtons}</div>
+        <ReleaseActions run={run} onReuse={onContinue} />
       </footer>
 
       {sourcePoint && <EvidenceDrawer point={sourcePoint} answer={selectedAnswer} posts={SKINCARE_POSTS} onClose={() => setSourcePoint(null)} />}

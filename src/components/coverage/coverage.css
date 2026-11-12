@@ -111,3 +111,18 @@
   .cv-detail-foot { justify-content: flex-start; }
   .cv-stale { flex-wrap: wrap; }
 }
+
+/* ── Save / launch (bottom-right of the detail panel) ── */
+.cv-detail-foot { justify-content: space-between; align-items: center; }
+.cv-detail-back { display: flex; flex-wrap: wrap; gap: 8px; }
+.cv-release { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; margin-left: auto; }
+.cv-release-status { color: #4b6e65; font-size: 11.5px; }
+.cv-release-status.is-blocked { color: #8b6221; }
+.cv-button:disabled { cursor: not-allowed; }
+.cv-button-primary:disabled { background: #b9c9c4; border-color: #b9c9c4; }
+.cv-button-quiet:disabled { color: #8fa39c; background: #f7f9f8; }
+.cv-release-summary { display: grid; gap: 8px; margin: 0 0 14px; padding: 12px 14px; background: #f8faf9; border-radius: 10px; font-size: 12.5px; }
+.cv-release-summary div { display: grid; grid-template-columns: 64px 1fr; gap: 10px; }
+.cv-release-summary dt { color: #7b878b; }
+.cv-release-summary dd { margin: 0; color: #33434a; line-height: 1.55; }
+@media (max-width: 560px) { .cv-release { justify-content: flex-start; margin-left: 0; } }

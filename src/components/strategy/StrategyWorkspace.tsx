@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react'
 import {
   ArrowDown,
   ArrowUp,
+  BadgeCheck,
   BellRing,
   Check,
   ChevronRight,
@@ -17,9 +18,11 @@ import {
 import {
   BASELINE_CONFIG,
   COMPONENTS,
+  FILTER_RULES,
   DEMO_AS_OF_DATE,
   MAIN_QUERY,
   POINT_CATALOG,
+  ROLE_DUTIES,
   SKINCARE_POSTS,
   STRATEGY_ITEMS_BY_PATH,
   TEMPLATE_DRAFT_VERSION,
@@ -28,17 +31,23 @@ import {
   TEMPLATE_VERSION_HISTORY,
 } from '../../data'
 import { detectConflicts, getConfigVersion, renderAnswer } from '../../engine'
-import { DEMO_ROLES, ROLE_LABELS, ROLE_TAB_LABELS, useDemoStore, type PageId, type PreviewVersion } from '../../store'
-import type { ConfigPath, ConfigValue, ContentKind, Post, QueryCategory, RenderedAnswer, StrategyConfig } from '../../types'
+import { DEMO_ROLES, ROLE_LABELS, ROLE_TAB_LABELS, useDemoStore, type DemoRole, type PageId, type PreviewVersion } from '../../store'
+import type { ConfigPath, ConfigValue, ContentKind, MinNoteLikes, Post, QueryCategory, RenderedAnswer, SponsoredCap, StrategyConfig } from '../../types'
 import { AnswerPreview, markAnswerDiff, type CheckStatus } from './AnswerPreview'
 import { EvidenceDrawer } from './EvidenceDrawer'
-import { NewStrategyRequest } from './NewStrategyRequest'
+import { EditStrategyDialog, EditTemplateDialog, ruleLabel } from './EditDialogs'
 import './strategy.css'
 
 /** Step 01 edits the card template (presentation + guardrails); step 02 edits the post filter (evidence). */
 export type WorkspaceStage = 'template' | 'filter'
 
 const COMPONENT_ORDER_IDS = ['conclusion', 'persona-groups', 'step-list', 'pitfall-card']
+/** Which switch turns each orderable component on; components without one are always shown. */
+const COMPONENT_TOGGLES: Partial<Record<string, keyof StrategyConfig['presentation']>> = {
+  conclusion: 'showConclusion',
+  'persona-groups': 'groupByPersona',
+  'pitfall-card': 'showPitfall',
+}
 const COMPONENT_LABELS: Record<string, string> = {
   conclusion: '一句话结论',
   'persona-groups': '肤质分组',
@@ -59,11 +68,14 @@ const STAGE_PATHS: Record<WorkspaceStage, ConfigPath[]> = {
   ],
   filter: [
     'evidence.allowedKinds',
-    'evidence.preferFirstHand',
     'evidence.freshnessDays',
-    'evidence.includeCounterEvidence',
+    'evidence.minNoteLikes',
+    'evidence.preferFirstHand',
+    'evidence.preferMatchingPersona',
     'evidence.allowSponsored',
-    'evidence.labelSponsored',
+    'evidence.sponsoredPersonaMatch',
+    'evidence.includeCounterEvidence',
+    'evidence.sponsoredCap',
   ],
 }
 
@@ -76,8 +88,32 @@ function isModified(config: StrategyConfig, path: ConfigPath): boolean {
   return JSON.stringify(getConfigValue(config, path)) !== JSON.stringify(getConfigValue(BASELINE_CONFIG, path))
 }
 
-export function changedLabels(config: StrategyConfig, stage: WorkspaceStage): string[] {
-  return STAGE_PATHS[stage].filter((path) => isModified(config, path)).map((path) => STRATEGY_ITEMS_BY_PATH[path].label)
+function setConfigValue(config: StrategyConfig, path: ConfigPath, value: ConfigValue): StrategyConfig {
+  const [section, key] = path.split('.') as [keyof StrategyConfig, string]
+  const copy = Array.isArray(value) ? [...value] : value
+  return { ...config, [section]: { ...config[section], [key]: copy } }
+}
+
+/** Changes on a page; on step 02 a deleted rule is listed as “删除「…」” instead of its field change. */
+export function changedLabels(config: StrategyConfig, stage: WorkspaceStage, removed: string[] = []): string[] {
+  if (stage === 'template') return STAGE_PATHS.template.filter((path) => isModified(config, path)).map((path) => STRATEGY_ITEMS_BY_PATH[path].label)
+  const removedPaths = new Set(FILTER_RULES.filter((rule) => removed.includes(rule.id) && rule.path).map((rule) => rule.path))
+  const edited = STAGE_PATHS.filter.filter((path) => !removedPaths.has(path) && isModified(config, path)).map((path) => STRATEGY_ITEMS_BY_PATH[path].label)
+  const deleted = FILTER_RULES.filter((rule) => removed.includes(rule.id)).map((rule) => `删除「${ruleLabel(rule)}」`)
+  return [...edited, ...deleted]
+}
+
+/** Applies a new set of deleted rules: newly deleted fields go neutral, restored fields go back to baseline. */
+function applyRemovedRules(config: StrategyConfig, previous: string[], next: string[]): StrategyConfig {
+  let result = config
+  for (const rule of FILTER_RULES) {
+    if (!rule.path) continue
+    const was = previous.includes(rule.id)
+    const now = next.includes(rule.id)
+    if (!was && now && rule.neutral !== undefined) result = setConfigValue(result, rule.path, rule.neutral)
+    if (was && !now) result = setConfigValue(result, rule.path, getConfigValue(BASELINE_CONFIG, rule.path))
+  }
+  return result
 }
 
 function resetStage(config: StrategyConfig, stage: WorkspaceStage): StrategyConfig {
@@ -94,23 +130,26 @@ function resetStage(config: StrategyConfig, stage: WorkspaceStage): StrategyConf
   return { ...config, evidence: { ...BASELINE_CONFIG.evidence, allowedKinds: [...BASELINE_CONFIG.evidence.allowedKinds] } }
 }
 
-function PolicyItem({ path, config, children, stack = false }: {
+function PolicyItem({ path, config, children, stack = false, inactiveHint }: {
   path: ConfigPath
   config: StrategyConfig
   children: ReactNode
   stack?: boolean
+  /** When set, the item depends on a switch above that is off: it is greyed out and the hint explains why. */
+  inactiveHint?: string
 }) {
   const item = STRATEGY_ITEMS_BY_PATH[path]
   return (
-    <section className={`s2-policy-item ${stack ? 'is-stack' : ''}`}>
+    <section className={`s2-policy-item ${stack ? 'is-stack' : ''} ${inactiveHint ? 'is-inactive' : ''}`}>
       <div className="s2-policy-main">
         <div className="s2-policy-title-row">
           <h3>{item.label}</h3>
           {isModified(config, path) && <span className="s2-draft-mark">已改动</span>}
+          {inactiveHint && <span className="s2-inactive-mark">未生效</span>}
         </div>
-        <p className="s2-policy-description">{item.explanation}</p>
+        <p className="s2-policy-description">{inactiveHint ?? item.explanation}</p>
       </div>
-      <div className="s2-policy-control">{children}</div>
+      <fieldset className="s2-policy-control" disabled={Boolean(inactiveHint)}>{children}</fieldset>
     </section>
   )
 }
@@ -210,7 +249,7 @@ function TemplateOpsSlots({ config, onChange }: { config: StrategyConfig; onChan
       <PolicyItem path="presentation.groupByPersona" config={config}>
         <SwitchControl checked={config.presentation.groupByPersona} label="按肤质分组" onChange={() => patch('groupByPersona', !config.presentation.groupByPersona)} />
       </PolicyItem>
-      <PolicyItem path="presentation.groupByPersonaAppliesTo" config={config} stack>
+      <PolicyItem path="presentation.groupByPersonaAppliesTo" config={config} stack inactiveHint={config.presentation.groupByPersona ? undefined : '开启「按肤质分组」后，才需要设置它对哪类问题生效。'}>
         <CategoryChoices value={config.presentation.groupByPersonaAppliesTo} onChange={(next) => patch('groupByPersonaAppliesTo', next)} />
       </PolicyItem>
       <PolicyItem path="presentation.showPitfall" config={config}>
@@ -218,19 +257,31 @@ function TemplateOpsSlots({ config, onChange }: { config: StrategyConfig; onChan
       </PolicyItem>
       <PolicyItem path="presentation.componentOrder" config={config} stack>
         <ol className="s2-order-list" aria-label="组件顺序">
-          {COMPONENT_ORDER_IDS.map((id) => {
-            const position = editableOrder.indexOf(id)
+          {editableOrder.map((id, position) => {
+            const toggle = COMPONENT_TOGGLES[id]
+            const off = toggle !== undefined && !config.presentation[toggle]
+            const shownIndex = off ? -1 : editableOrder.filter((entry) => {
+              const entryToggle = COMPONENT_TOGGLES[entry]
+              return entryToggle === undefined || Boolean(config.presentation[entryToggle])
+            }).indexOf(id)
             return (
-              <li key={id}>
-                <span className="s2-order-number">{position >= 0 ? String(position + 1).padStart(2, '0') : '—'}</span>
+              <li key={id} className={off ? 'is-off' : ''}>
+                <span className="s2-order-number">{off ? '—' : String(shownIndex + 1).padStart(2, '0')}</span>
                 <span>{COMPONENT_LABELS[id]}</span>
+                {off && <span className="s2-order-off">已关闭，不在卡片中显示</span>}
+                {!toggle && <span className="s2-order-fixed">常驻</span>}
                 <span className="s2-order-actions">
-                  <button type="button" aria-label={`上移${COMPONENT_LABELS[id]}`} disabled={position <= 0} onClick={() => move(id, -1)}><ArrowUp size={13} /></button>
-                  <button type="button" aria-label={`下移${COMPONENT_LABELS[id]}`} disabled={position < 0 || position === editableOrder.length - 1} onClick={() => move(id, 1)}><ArrowDown size={13} /></button>
+                  <button type="button" aria-label={`上移${COMPONENT_LABELS[id]}`} disabled={off || position <= 0} onClick={() => move(id, -1)}><ArrowUp size={13} /></button>
+                  <button type="button" aria-label={`下移${COMPONENT_LABELS[id]}`} disabled={off || position === editableOrder.length - 1} onClick={() => move(id, 1)}><ArrowDown size={13} /></button>
                 </span>
               </li>
             )
           })}
+          <li className="is-locked">
+            <span className="s2-order-number"><LockKeyhole size={11} /></span>
+            <span>来源底栏</span>
+            <span className="s2-order-off">固定在末尾 · 社区治理锁定</span>
+          </li>
         </ol>
       </PolicyItem>
     </>
@@ -257,6 +308,7 @@ function TemplateAdsSlot({ config, canEdit }: { config: StrategyConfig; canEdit:
         </div>
         <div className="s2-policy-control"><span className="s2-readonly-value">{config.guardrails.sponsoredPosition === 'afterConclusion' ? '结论之后' : '结论之前'}</span></div>
       </section>
+      <StaticItem title="品牌说 · 挂载商品卡" description="合作品牌在品牌说下方挂一张商品卡，用户可直接进店。组件库里还没有这个模块，可通过「编辑模版」提交需求。" badge="待研发" icon={<LayoutTemplate size={14} />} />
 
       {canEdit && !proposal && (
         <div className="s2-proposal-card">
@@ -296,9 +348,11 @@ function TemplateAdsSlot({ config, canEdit }: { config: StrategyConfig; canEdit:
 
 function TemplateCommunitySlots() {
   const rule = STRATEGY_ITEMS_BY_PATH['guardrails.sponsoredPosition']
+  const label = STRATEGY_ITEMS_BY_PATH['evidence.labelSponsored']
   return (
     <>
-      <StaticItem title="来源底栏与溯源" description="必备槽位：每张答案卡都要显示引用来源，可点击查看原帖。其他角色不能移除。" badge="锁定槽位" />
+      <StaticItem title="来源底栏与溯源" description="每张答案卡都要显示引用来源，点开可以看原帖。用户靠它判断答案可不可信，其他角色不能移除。" badge="锁定模块" />
+      <StaticItem title={label.label} description={label.explanation} badge="法规要求 · 锁定" icon={<BadgeCheck size={14} />} />
       <StaticItem title={rule.label} description={rule.explanation} badge="底线规则" icon={<ShieldCheck size={14} />} />
       <p className="s2-tab-footnote">底线规则的修改需要走社区治理评审，演示中未开放。</p>
     </>
@@ -307,65 +361,122 @@ function TemplateCommunitySlots() {
 
 /* ───────────── Step 02 · 筛选策略 ───────────── */
 
-function FilterOpsRules({ config, onChange }: { config: StrategyConfig; onChange: (next: StrategyConfig) => void }) {
+const FRESHNESS_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: '90', label: '近 90 天' },
+  { value: '180', label: '近 180 天' },
+  { value: '365', label: '近 365 天' },
+  { value: '不限', label: '不限' },
+]
+const MIN_LIKES_OPTIONS: Array<{ value: MinNoteLikes; label: string }> = [
+  { value: 0, label: '不设门槛' },
+  { value: 20, label: '≥ 20 赞' },
+  { value: 40, label: '≥ 40 赞' },
+]
+const SPONSORED_CAP_OPTIONS: Array<{ value: SponsoredCap; label: string }> = [
+  { value: 1, label: '最多 1 条' },
+  { value: 2, label: '最多 2 条' },
+  { value: '不限', label: '不限' },
+]
+
+/** Step 02 rules owned by one role, minus the ones deleted through “编辑策略”. */
+function FilterRules({ role, config, removed, onChange }: { role: DemoRole; config: StrategyConfig; removed: string[]; onChange: (next: StrategyConfig) => void }) {
+  const evidence = config.evidence
   const patch = <K extends keyof StrategyConfig['evidence']>(key: K, value: StrategyConfig['evidence'][K]) => {
-    onChange({ ...config, evidence: { ...config.evidence, [key]: value } })
+    onChange({ ...config, evidence: { ...evidence, [key]: value } })
   }
-  return (
-    <>
-      <PolicyItem path="evidence.allowedKinds" config={config}>
-        <div className="s2-choice-row">
-          {(['note', 'comment'] as ContentKind[]).map((kind) => {
-            const checked = config.evidence.allowedKinds.includes(kind)
-            return (
-              <label className={`s2-choice ${checked ? 'is-checked' : ''}`} key={kind}>
-                <input type="checkbox" checked={checked} onChange={() => patch('allowedKinds', checked ? config.evidence.allowedKinds.filter((value) => value !== kind) : [...config.evidence.allowedKinds, kind])} />
-                <span className="s2-checkmark"><Check size={12} /></span>
-                {CONTENT_KIND_LABELS[kind]}
-              </label>
-            )
-          })}
-        </div>
-      </PolicyItem>
-      <PolicyItem path="evidence.freshnessDays" config={config}>
-        <select className="s2-select" aria-label="时效窗口" value={config.evidence.freshnessDays} onChange={(event) => {
-          const raw = event.target.value
-          patch('freshnessDays', raw === '不限' ? '不限' : Number(raw) as 90 | 180 | 365)
-        }}>
-          <option value="90">近 90 天</option>
-          <option value="180">近 180 天</option>
-          <option value="365">近 365 天</option>
-          <option value="不限">不限</option>
-        </select>
-      </PolicyItem>
-      <PolicyItem path="evidence.preferFirstHand" config={config}>
-        <SwitchControl checked={config.evidence.preferFirstHand} label="优先展示亲身经验" onChange={() => patch('preferFirstHand', !config.evidence.preferFirstHand)} />
-      </PolicyItem>
-      <PolicyItem path="evidence.includeCounterEvidence" config={config}>
-        <SwitchControl checked={config.evidence.includeCounterEvidence} label="保留正反面经验" onChange={() => patch('includeCounterEvidence', !config.evidence.includeCounterEvidence)} />
-      </PolicyItem>
-    </>
-  )
-}
+  const rules = FILTER_RULES.filter((rule) => rule.role === role && !removed.includes(rule.id))
+  const sponsoredOff = !evidence.allowSponsored && !removed.includes('allow-sponsored')
 
-function FilterAdsRules({ config, onChange }: { config: StrategyConfig; onChange: (next: StrategyConfig) => void }) {
-  return (
-    <>
-      <PolicyItem path="evidence.allowSponsored" config={config}>
-        <SwitchControl checked={config.evidence.allowSponsored} label="允许合作内容进入候选" onChange={() => onChange({ ...config, evidence: { ...config.evidence, allowSponsored: !config.evidence.allowSponsored } })} />
-      </PolicyItem>
-      <StaticItem title="合作内容入卡上限" description="每张答案卡最多 1 条合作内容。由社区治理设定，商业化在此范围内调整。" badge="社区规则" icon={<ShieldCheck size={14} />} />
-    </>
-  )
-}
+  const control = (id: string): ReactNode => {
+    switch (id) {
+      case 'allowed-kinds':
+        return (
+          <PolicyItem path="evidence.allowedKinds" config={config} key={id}>
+            <div className="s2-choice-row">
+              {(['note', 'comment'] as ContentKind[]).map((kind) => {
+                const checked = evidence.allowedKinds.includes(kind)
+                return (
+                  <label className={`s2-choice ${checked ? 'is-checked' : ''}`} key={kind}>
+                    <input type="checkbox" checked={checked} onChange={() => patch('allowedKinds', checked ? evidence.allowedKinds.filter((value) => value !== kind) : [...evidence.allowedKinds, kind])} />
+                    <span className="s2-checkmark"><Check size={12} /></span>
+                    {CONTENT_KIND_LABELS[kind]}
+                  </label>
+                )
+              })}
+            </div>
+          </PolicyItem>
+        )
+      case 'freshness-window':
+        return (
+          <PolicyItem path="evidence.freshnessDays" config={config} key={id}>
+            <select className="s2-select" aria-label="时效窗口" value={evidence.freshnessDays} onChange={(event) => {
+              const raw = event.target.value
+              patch('freshnessDays', raw === '不限' ? '不限' : Number(raw) as 90 | 180 | 365)
+            }}>
+              {FRESHNESS_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </PolicyItem>
+        )
+      case 'min-note-likes':
+        return (
+          <PolicyItem path="evidence.minNoteLikes" config={config} key={id}>
+            <select className="s2-select" aria-label="笔记互动门槛" value={evidence.minNoteLikes} onChange={(event) => patch('minNoteLikes', Number(event.target.value) as MinNoteLikes)}>
+              {MIN_LIKES_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+            </select>
+          </PolicyItem>
+        )
+      case 'prefer-first-hand':
+        return (
+          <PolicyItem path="evidence.preferFirstHand" config={config} key={id}>
+            <SwitchControl checked={evidence.preferFirstHand} label="优先展示亲身经验" onChange={() => patch('preferFirstHand', !evidence.preferFirstHand)} />
+          </PolicyItem>
+        )
+      case 'prefer-matching-persona':
+        return (
+          <PolicyItem path="evidence.preferMatchingPersona" config={config} key={id}>
+            <SwitchControl checked={evidence.preferMatchingPersona} label="同肤质经验优先" onChange={() => patch('preferMatchingPersona', !evidence.preferMatchingPersona)} />
+          </PolicyItem>
+        )
+      case 'allow-sponsored':
+        return (
+          <PolicyItem path="evidence.allowSponsored" config={config} key={id}>
+            <SwitchControl checked={evidence.allowSponsored} label="允许合作内容进入候选" onChange={() => patch('allowSponsored', !evidence.allowSponsored)} />
+          </PolicyItem>
+        )
+      case 'sponsored-persona-match':
+        return (
+          <PolicyItem path="evidence.sponsoredPersonaMatch" config={config} key={id} inactiveHint={sponsoredOff ? '合作内容已不进入候选，人群匹配暂不生效。' : undefined}>
+            <SwitchControl checked={evidence.sponsoredPersonaMatch} label="合作内容须匹配提问人群" onChange={() => patch('sponsoredPersonaMatch', !evidence.sponsoredPersonaMatch)} />
+          </PolicyItem>
+        )
+      case 'counter-evidence':
+        return (
+          <PolicyItem path="evidence.includeCounterEvidence" config={config} key={id}>
+            <SwitchControl checked={evidence.includeCounterEvidence} label="保留正反面经验" onChange={() => patch('includeCounterEvidence', !evidence.includeCounterEvidence)} />
+          </PolicyItem>
+        )
+      case 'sponsored-cap':
+        return (
+          <PolicyItem path="evidence.sponsoredCap" config={config} key={id}>
+            <select className="s2-select" aria-label="合作内容入卡上限" value={String(evidence.sponsoredCap)} onChange={(event) => {
+              const raw = event.target.value
+              patch('sponsoredCap', raw === '不限' ? '不限' : Number(raw) as 1 | 2)
+            }}>
+              {SPONSORED_CAP_OPTIONS.map((option) => <option key={String(option.value)} value={String(option.value)}>{option.label}</option>)}
+            </select>
+          </PolicyItem>
+        )
+      default:
+        return null
+    }
+  }
 
-function FilterCommunityRules({ config, onChange }: { config: StrategyConfig; onChange: (next: StrategyConfig) => void }) {
   return (
     <>
-      <PolicyItem path="evidence.labelSponsored" config={config}>
-        <SwitchControl checked={config.evidence.labelSponsored} label="商业内容必须标注" onChange={() => onChange({ ...config, evidence: { ...config.evidence, labelSponsored: !config.evidence.labelSponsored } })} />
-      </PolicyItem>
-      <StaticItem title="接入反馈评测结果" description="用户反馈过的帖子经评测打分后分级处置：高置信自动移出或降权，中置信进入人工复核。" badge="开发中" icon={<History size={14} />} />
+      {rules.map((rule) => rule.path
+        ? control(rule.id)
+        : <StaticItem key={rule.id} title={rule.label ?? rule.id} description={rule.description ?? ''} badge={rule.badge ?? ''} icon={rule.badge === '开发中' ? <History size={14} /> : <ShieldCheck size={14} />} />)}
+      {rules.length === 0 && <p className="s2-tab-footnote">这个角色的策略已全部删除。可通过「编辑策略」恢复，或点「恢复本页默认」。</p>}
     </>
   )
 }
@@ -396,8 +507,10 @@ function PostChanges({ before, after, posts }: { before: RenderedAnswer; after: 
 
 /* ───────────── Page ───────────── */
 
+const SCENE_LABEL = '护肤 · 选购怎么选'
+
 const STAGE_COPY: Record<WorkspaceStage, { title: string; description: string }> = {
-  template: { title: '卡片模板', description: '定义 AI 搜答案卡的呈现结构，各角色负责各自的槽位。' },
+  template: { title: '卡片模板', description: '定义 AI 搜答案卡的呈现结构，各角色负责卡片里不同的模块。' },
   filter: { title: '筛选策略', description: '决定哪些帖子进入答案卡。生效顺序：社区治理底线 → 商业化 → 行业运营。' },
 }
 
@@ -407,6 +520,8 @@ export function StrategyWorkspace({ stage, onNavigate }: { stage: WorkspaceStage
   const setViewedRole = useDemoStore((state) => state.setViewedRole)
   const draftConfig = useDemoStore((state) => state.draftConfig)
   const setDraftConfig = useDemoStore((state) => state.setDraftConfig)
+  const removedFilterRules = useDemoStore((state) => state.removedFilterRules)
+  const setRemovedFilterRules = useDemoStore((state) => state.setRemovedFilterRules)
   const previewVersion = useDemoStore((state) => state.previewVersion)
   const setPreviewVersion = useDemoStore((state) => state.setPreviewVersion)
   const sourcePoint = useDemoStore((state) => state.sourcePoint)
@@ -428,9 +543,9 @@ export function StrategyWorkspace({ stage, onNavigate }: { stage: WorkspaceStage
     () => renderAnswer(resetStage(draftConfig, 'filter'), MAIN_QUERY, SKINCARE_POSTS, COMPONENTS, POINT_CATALOG, DEMO_AS_OF_DATE),
     [draftConfig],
   )
-  const modified = JSON.stringify(draftConfig) !== JSON.stringify(BASELINE_CONFIG)
-  const stageChanges = changedLabels(draftConfig, stage)
-  const otherChanges = changedLabels(draftConfig, stage === 'template' ? 'filter' : 'template')
+  const stageChanges = changedLabels(draftConfig, stage, removedFilterRules)
+  const otherChanges = changedLabels(draftConfig, stage === 'template' ? 'filter' : 'template', removedFilterRules)
+  const modified = JSON.stringify(draftConfig) !== JSON.stringify(BASELINE_CONFIG) || removedFilterRules.length > 0
   const diffSummary = !modified
     ? '与基线一致，答案未发生变化。'
     : `已改动：${[...stageChanges, ...otherChanges].join('、')}。`
@@ -442,9 +557,16 @@ export function StrategyWorkspace({ stage, onNavigate }: { stage: WorkspaceStage
     ? viewedRole === 'industry_ops' ? <TemplateOpsSlots config={draftConfig} onChange={setDraftConfig} />
       : viewedRole === 'ads' ? <TemplateAdsSlot config={draftConfig} canEdit={canEdit} />
         : <TemplateCommunitySlots />
-    : viewedRole === 'industry_ops' ? <FilterOpsRules config={draftConfig} onChange={setDraftConfig} />
-      : viewedRole === 'ads' ? <FilterAdsRules config={draftConfig} onChange={setDraftConfig} />
-        : <FilterCommunityRules config={draftConfig} onChange={setDraftConfig} />
+    : <FilterRules role={viewedRole} config={draftConfig} removed={removedFilterRules} onChange={setDraftConfig} />
+  const applyRemoved = (next: string[]) => {
+    setDraftConfig(applyRemovedRules(draftConfig, removedFilterRules, next))
+    setRemovedFilterRules(next)
+  }
+  const resetPage = () => {
+    setDraftConfig(resetStage(draftConfig, stage))
+    if (stage === 'filter') setRemovedFilterRules([])
+  }
+  const activeTemplate = TEMPLATE_LIBRARY.find((template) => template.interactive)
 
   return (
     <>
@@ -452,7 +574,9 @@ export function StrategyWorkspace({ stage, onNavigate }: { stage: WorkspaceStage
         <section className="panel s2-editor-panel" aria-labelledby="stage-editor-title">
           <div className="s2-panel-heading">
             <div><h2 id="stage-editor-title">{copy.title}</h2><p>{copy.description}</p></div>
-            {stage === 'filter' && <NewStrategyRequest role={role} scene={`护肤 · 选购怎么选`} />}
+            {stage === 'filter'
+              ? <EditStrategyDialog role={role} scene={SCENE_LABEL} removed={removedFilterRules} onApply={applyRemoved} />
+              : <EditTemplateDialog role={role} scene={SCENE_LABEL} templateName={`${activeTemplate?.name ?? '护肤测评 · 选购'} · 草稿 ${TEMPLATE_DRAFT_VERSION}`} />}
           </div>
 
           {stage === 'template' && <TemplateHeader config={draftConfig} />}
@@ -465,6 +589,7 @@ export function StrategyWorkspace({ stage, onNavigate }: { stage: WorkspaceStage
             ))}
           </div>
 
+          <p className="s2-role-duty"><strong>{ROLE_TAB_LABELS[viewedRole]}</strong>{ROLE_DUTIES[stage][viewedRole]}</p>
           {!canEdit && <div className="s2-role-readonly"><LockKeyhole size={14} /><span>由「{ROLE_TAB_LABELS[viewedRole]}」负责。当前账号「{ROLE_LABELS[role]}」只能查看。</span></div>}
           <fieldset className="s2-fieldset" disabled={!canEdit} role="tabpanel" aria-label={`${ROLE_TAB_LABELS[viewedRole]}负责的内容`}>
             <div className="s2-control-list">{tabContent}</div>
@@ -472,7 +597,7 @@ export function StrategyWorkspace({ stage, onNavigate }: { stage: WorkspaceStage
 
           <div className="s2-editor-footer">
             <div><span className="s2-unsaved-dot" /><span>{stageChanges.length > 0 ? `本页已改动 ${stageChanges.length} 项，预览已实时更新。` : '本页与基线一致。'}</span></div>
-            <button type="button" className="s2-reset-button" onClick={() => setDraftConfig(resetStage(draftConfig, stage))} disabled={stageChanges.length === 0}><RotateCcw size={14} />恢复本页默认</button>
+            <button type="button" className="s2-reset-button" onClick={resetPage} disabled={stageChanges.length === 0}><RotateCcw size={14} />恢复本页默认</button>
           </div>
         </section>
 

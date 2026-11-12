@@ -24,8 +24,10 @@ function useStepProgress(): Record<StepPage, { done: boolean; status: string }> 
   const draftConfig = useDemoStore((state) => state.draftConfig)
   const coverageRun = useDemoStore((state) => state.coverageRun)
   const visited = useDemoStore((state) => state.visitedPages)
+  const removedFilterRules = useDemoStore((state) => state.removedFilterRules)
+  const launchedVersion = useDemoStore((state) => state.launchedConfigVersion)
   const templateChanges = changedLabels(draftConfig, 'template').length
-  const filterChanges = changedLabels(draftConfig, 'filter').length
+  const filterChanges = changedLabels(draftConfig, 'filter', removedFilterRules).length
   const runIsCurrent = coverageRun !== null && coverageRun.configVersion === getConfigVersion(draftConfig)
   const coverage = !coverageRun
     ? { done: false, status: '样例未运行' }
@@ -33,7 +35,9 @@ function useStepProgress(): Record<StepPage, { done: boolean; status: string }> 
       ? { done: false, status: '草稿已变更，需重跑' }
       : coverageRun.summary.regressed > 0
         ? { done: false, status: `发现 ${coverageRun.summary.regressed} 条回归` }
-        : { done: true, status: '当前草稿无回归' }
+        : launchedVersion === coverageRun.configVersion
+          ? { done: true, status: `${TEMPLATE_DRAFT_VERSION} 已上线` }
+          : { done: true, status: '当前草稿无回归，待上线' }
   return {
     template: templateChanges > 0
       ? { done: true, status: `草稿 ${TEMPLATE_DRAFT_VERSION} · 改动 ${templateChanges} 项` }

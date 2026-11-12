@@ -46,7 +46,7 @@ const productValues = [
   {
     icon: SlidersHorizontal,
     title: '让三方共建、权责清楚',
-    description: '商业化、行业运营、社区治理各自负责卡片模板的槽位和帖子筛选的规则；账号之间可互相查看，只能修改自己负责的部分。',
+    description: '商业化、行业运营、社区治理各自负责卡片模板里的模块和帖子筛选的规则；账号之间可互相查看，只能修改自己负责的部分。',
   },
   {
     icon: FileSearch,

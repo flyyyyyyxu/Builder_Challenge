@@ -317,3 +317,61 @@
 .s2-modal-success code { padding: 1px 6px; background: #f1f5f4; border-radius: 5px; font-size: 12.5px; }
 .s2-modal-next { width: 100%; margin: 0 0 18px; list-style: decimal; padding: 12px 14px 12px 32px; color: #5b686e; text-align: left; background: #f8faf9; border-radius: 10px; font-size: 12.5px; line-height: 1.8; }
 .s2-preview-card.is-embedded { padding: 12px; background: #f8faf9; border-color: #ebeeee; }
+
+/* ── Role duty line, inactive (greyed) dependent items ── */
+.s2-role-duty { margin: -3px 0 8px; color: #6f7b80; font-size: 11.5px; line-height: 1.55; }
+.s2-role-duty strong { margin-right: 6px; color: #33434a; font-weight: 650; }
+fieldset.s2-policy-control { margin: 0; padding: 0; border: 0; min-width: 72px; }
+.s2-policy-item.is-inactive .s2-policy-title-row h3 { color: #9aa5a8; }
+.s2-policy-item.is-inactive .s2-policy-description { color: #a3acaf; }
+.s2-policy-item.is-inactive .s2-policy-control { opacity: .45; }
+.s2-policy-item.is-inactive label, .s2-policy-item.is-inactive button { cursor: not-allowed; }
+.s2-inactive-mark { padding: 2px 5px; color: #8a9497; background: #f1f3f3; border-radius: 4px; font-size: 9px; font-weight: 650; }
+
+/* ── Component order: rows whose switch is off are greyed ── */
+.s2-order-list li.is-off { color: #a9b2b4; background: #f6f7f7; border-style: dashed; }
+.s2-order-list li.is-off > span:nth-child(2) { text-decoration: line-through; text-decoration-color: #c4cbcd; }
+.s2-order-list li.is-locked { color: #8b969a; background: #f6f7f7; }
+.s2-order-off { color: #a3acaf; font-size: 9.5px; }
+.s2-order-fixed { padding: 1px 5px; color: #6f7b80; background: #eef1f1; border-radius: 4px; font-size: 9px; }
+.s2-order-list li.is-locked .s2-order-number { display: inline-grid; place-items: center; width: 12px; }
+
+/* ── Edit dialogs ── */
+.s2-modal.is-wide { width: min(100%, 560px); max-height: calc(100vh - 32px); overflow-y: auto; }
+.s2-modal-meta { display: grid; grid-template-columns: auto 1fr; gap: 0 22px; }
+.s2-modal-label { display: flex; align-items: baseline; gap: 8px; }
+.s2-modal-label small { color: #8b969a; font-size: 11px; font-weight: 400; }
+.s2-modal-scene { display: inline-flex; align-items: center; gap: 6px; }
+.s2-edit-rule-list { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.s2-edit-rule-list li { display: flex; align-items: center; gap: 12px; padding: 9px 10px 9px 12px; background: #fafbfb; border: 1px solid #e8eded; border-radius: 9px; }
+.s2-edit-rule-list li > div { display: flex; flex: 1; flex-wrap: wrap; align-items: center; gap: 2px 7px; min-width: 0; }
+.s2-edit-rule-list strong { color: #33434a; font-size: 13px; font-weight: 650; }
+.s2-edit-rule-list small { flex-basis: 100%; color: #7b878b; font-size: 11.5px; line-height: 1.5; }
+.s2-edit-rule-list li.is-removed { background: #fbf7f6; border-style: dashed; border-color: #ead8d4; }
+.s2-edit-rule-list li.is-removed strong { color: #a0898a; text-decoration: line-through; }
+.s2-edit-rule-list li.is-removed small { color: #a8817c; }
+.s2-edit-rule-badge { padding: 1px 6px; color: #6f7b80; background: #eef1f1; border-radius: 4px; font-size: 10.5px; }
+.s2-edit-rule-action { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; padding: 6px 9px; color: #4f5f65; background: #fff; border: 1px solid #dfe5e4; border-radius: 7px; cursor: pointer; font-size: 12px; }
+.s2-edit-rule-action:hover { border-color: #b9c9c4; }
+.s2-edit-rule-action.is-danger { color: #b0493c; }
+.s2-edit-rule-action.is-danger:hover { background: #fdf3f1; border-color: #efc9c2; }
+.s2-modal-applied { display: flex; flex-direction: column; gap: 3px; width: 100%; margin: 0 0 14px; padding: 10px 14px; color: #33434a; text-align: left; background: #f1f7f5; border-radius: 10px; font-size: 13px; }
+.s2-modal-applied small { color: #6d8f86; font-size: 11.5px; }
+.s2-modal-hint { margin: 0 0 16px; color: #6b777c; font-size: 12.5px; line-height: 1.6; }
+.s2-segment { display: inline-flex; gap: 2px; margin: 2px 0 14px; padding: 3px; background: #f1f4f4; border-radius: 9px; }
+.s2-segment button { min-height: 30px; padding: 0 14px; color: #64727a; background: transparent; border: 0; border-radius: 7px; cursor: pointer; font-size: 12.5px; font-weight: 600; }
+.s2-segment button.is-active { color: var(--brand-strong); background: #fff; box-shadow: 0 1px 3px rgba(24,34,40,.1); }
+.s2-upload-drop { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; padding: 20px 12px; color: #5b686e; background: #fbfcfc; border: 1.5px dashed #c9d6d2; border-radius: 10px; cursor: pointer; }
+.s2-upload-drop:hover { background: var(--brand-soft); border-color: #9fc2b7; }
+.s2-upload-drop svg { color: var(--brand); }
+.s2-upload-drop strong { color: #33434a; font-size: 13px; }
+.s2-upload-drop small { color: #8b969a; font-size: 11.5px; }
+.s2-upload-file { display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: #f1f7f5; border-radius: 9px; }
+.s2-upload-file svg { flex: 0 0 auto; color: var(--brand); }
+.s2-upload-file > span { display: flex; flex: 1; flex-direction: column; min-width: 0; }
+.s2-upload-file strong { overflow: hidden; color: #33434a; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
+.s2-upload-file small { color: #6d8f86; font-size: 11px; }
+@media (max-width: 560px) {
+  .s2-modal-meta { grid-template-columns: 1fr; }
+  .s2-edit-rule-list li { align-items: flex-start; }
+}

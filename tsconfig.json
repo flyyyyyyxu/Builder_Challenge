@@ -17,7 +17,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "exclude": ["src/App 2.tsx", "src/types 2.ts"],
   "include": ["src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
