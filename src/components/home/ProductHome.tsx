@@ -110,6 +110,7 @@ export function ProductHome({ onEnterDemo, onOpenReuse, onOpenFeedback }: Produc
             <div className="intro-hero-actions">
               <button type="button" className="intro-primary-cta" onClick={onEnterDemo}>进入策略工作台 <ArrowRight size={17} /></button>
               <a className="intro-secondary-cta" href="#solution">先看产品方案 <ArrowRight size={16} /></a>
+              <a className="intro-secondary-cta" href="/walkthrough/index.html">用户走查路径 <ArrowUpRight size={16} /></a>
             </div>
             <div className="intro-audience-line"><UsersRound size={16} /><span>首批用户</span><strong>行业运营 · 场景 PM</strong><i /><span>首期共建</span><strong>商业化 · 社区治理</strong></div>
           </div>
