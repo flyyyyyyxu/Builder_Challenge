@@ -2,7 +2,9 @@ import { useMemo, type ReactNode } from 'react'
 import {
   ArrowDown,
   ArrowUp,
+  BellRing,
   BookOpenCheck,
+  CircleAlert,
   Check,
   ChevronRight,
   FileSearch,
@@ -21,10 +23,10 @@ import {
   STRATEGY_ITEMS,
   STRATEGY_ITEMS_BY_PATH,
 } from '../../data'
-import { renderAnswer } from '../../engine'
-import { useDemoStore, type PageId, type PreviewVersion } from '../../store'
+import { detectConflicts, getConfigVersion, renderAnswer } from '../../engine'
+import { ROLE_LABELS, useDemoStore, type DemoRole, type PageId, type PreviewVersion } from '../../store'
 import type { AnswerPoint, ConfigPath, ConfigValue, ContentKind, QueryCategory, RenderedAnswer, StrategyConfig, StrategyItem, StrategyTab } from '../../types'
-import { AnswerPreview, markAnswerDiff } from './AnswerPreview'
+import { AnswerPreview, markAnswerDiff, type CheckStatus } from './AnswerPreview'
 import { EvidenceDrawer } from './EvidenceDrawer'
 import './strategy.css'
 
@@ -57,11 +59,11 @@ function pointsOf(answer: RenderedAnswer): AnswerPoint[] {
 }
 
 function sourceLabel(item: StrategyItem, changed: boolean): string {
-  if (changed) return '本地演示草稿'
+  if (changed) return '当前草稿'
   if (item.isExampleGuardrail) return '示例规则'
   if (item.source === 'platform-default') return '平台默认值（示例）'
   if (item.source === 'scene-template') return '场景模板（示例）'
-  return '本地演示草稿'
+  return '当前草稿'
 }
 
 function scopeLabel(item: StrategyItem, config: StrategyConfig): string {
@@ -132,11 +134,90 @@ function SwitchControl({ checked, label, onChange, disabled = false }: {
   )
 }
 
+function ReadOnlyFieldset({ role, tab, children }: { role: DemoRole; tab: StrategyTab; children: ReactNode }) {
+  const canEdit = STRATEGY_ITEMS.filter((item) => item.tab === tab).every((item) => item.editableBy.includes(role))
+  return (
+    <>
+      {!canEdit && <div className="s2-role-readonly"><LockKeyhole size={14} /><span>当前身份「{ROLE_LABELS[role]}」不负责这些策略位，只能查看；对商业内容位置的调整可在「护栏规则」中提出。</span></div>}
+      <fieldset className="s2-fieldset" disabled={!canEdit}>{children}</fieldset>
+    </>
+  )
+}
+
+function GuardrailPanel({ config }: { config: StrategyConfig }) {
+  const role = useDemoStore((state) => state.role)
+  const proposal = useDemoStore((state) => state.sponsoredProposal)
+  const notified = useDemoStore((state) => state.conflictNotified)
+  const propose = useDemoStore((state) => state.proposeSponsoredBeforeConclusion)
+  const withdraw = useDemoStore((state) => state.withdrawSponsoredProposal)
+  const notify = useDemoStore((state) => state.notifyConflictOwner)
+  const guardrail = STRATEGY_ITEMS_BY_PATH['guardrails.sponsoredPosition']
+  // The proposal is checked against the guardrail but never merged into the draft or the preview.
+  const conflicts = useMemo(
+    () => proposal ? detectConflicts({ ...config, guardrails: { ...config.guardrails, sponsoredPosition: proposal } }) : [],
+    [config, proposal],
+  )
+
+  return (
+    <div className="s2-control-list" role="tabpanel" aria-label="护栏规则">
+      <PolicyItem item={guardrail} config={config} className="is-readonly">
+        <div className="s2-readonly-value">
+          <LockKeyhole size={15} />
+          <span>{config.guardrails.sponsoredPosition === 'afterConclusion' ? '结论之后展示' : '结论之前展示'}</span>
+        </div>
+      </PolicyItem>
+
+      {role === 'ads' && !proposal && (
+        <div className="s2-proposal-card">
+          <div><strong>以「{ROLE_LABELS.ads}」身份提出调整</strong><p>想把「品牌说」放到结论之前展示。该位置受示例护栏约束，提交后平台只做冲突检查，不会直接改动草稿或预览。</p></div>
+          <button type="button" className="s2-proposal-button" onClick={propose}>提议：品牌说放在结论之前</button>
+        </div>
+      )}
+
+      {conflicts.map((conflict) => (
+        <section className="s2-conflict-card" key={conflict.id} aria-labelledby={`${conflict.id}-title`}>
+          <header><CircleAlert size={16} /><h3 id={`${conflict.id}-title`}>检测到护栏冲突 · 待讨论</h3></header>
+          <p>{conflict.message}</p>
+          <dl className="s2-conflict-source">
+            <div><dt>规则</dt><dd>{conflict.guardrail.label}</dd></div>
+            <div><dt>负责团队</dt><dd>{conflict.guardrail.ownerTeam}</dd></div>
+            <div><dt>负责人</dt><dd>{conflict.guardrail.ownerName}</dd></div>
+          </dl>
+          <div className="s2-conflict-options">
+            <span className="s2-conflict-options-label">待讨论的选项（由规则负责人与业务按现行机制决定，此处不采纳）</span>
+            {conflict.options.map((option, index) => (
+              <div className="s2-conflict-option" key={option.id}><span>{String.fromCharCode(65 + index)}</span><div><strong>{option.label}</strong><small>{option.note}</small></div></div>
+            ))}
+          </div>
+          {notified ? (
+            <div className="s2-conflict-notified"><BellRing size={14} /><span>已生成讨论事项，等待{conflict.guardrail.ownerTeam}回应。演示环境不会发送任何消息。</span></div>
+          ) : (
+            <div className="s2-conflict-actions">
+              <button type="button" className="s2-proposal-button" onClick={notify}><BellRing size={14} />通知规则负责人并发起讨论</button>
+              <button type="button" className="s2-text-button" onClick={withdraw}>撤回提议</button>
+            </div>
+          )}
+          <small className="s2-conflict-foot">冲突只提示、不裁决：草稿、预览和护栏均保持不变。</small>
+        </section>
+      ))}
+
+      {role !== 'ads' && (
+        <div className="s2-guardrail-note">
+          <ShieldCheck size={17} />
+          <div><strong>护栏冲突需要讨论，不自动采纳</strong><p>此为社区治理团队（示例）的只读规则。其他团队提出的调整只会生成待讨论事项，不会替负责人改写规则。可在顶栏切换为「{ROLE_LABELS.ads}」演示冲突提示。</p></div>
+        </div>
+      )}
+      <div className="s2-guardrail-boundary"><LockKeyhole size={15} /><span>业务可调整商业内容是否保留标注；呈现位置由示例护栏约束。</span></div>
+    </div>
+  )
+}
+
 function StrategyControls({ tab, config, onChange }: {
   tab: StrategyTab
   config: StrategyConfig
   onChange: (next: StrategyConfig) => void
 }) {
+  const role = useDemoStore((state) => state.role)
   const item = (path: ConfigPath) => STRATEGY_ITEMS_BY_PATH[path]
   const patchEvidence = <K extends keyof StrategyConfig['evidence']>(key: K, value: StrategyConfig['evidence'][K]) => {
     onChange({ ...config, evidence: { ...config.evidence, [key]: value } })
@@ -148,6 +229,7 @@ function StrategyControls({ tab, config, onChange }: {
   if (tab === 'evidence') {
     const kinds = (['note', 'comment'] as ContentKind[])
     return (
+      <ReadOnlyFieldset role={role} tab={tab}>
       <div className="s2-control-list" role="tabpanel" aria-label="内容依据策略">
         <PolicyItem item={item('evidence.allowedKinds')} config={config} className="is-stack">
           <div className="s2-choice-row">
@@ -195,6 +277,7 @@ function StrategyControls({ tab, config, onChange }: {
           <SwitchControl checked={config.evidence.labelSponsored} label="商业内容标注" onChange={() => patchEvidence('labelSponsored', !config.evidence.labelSponsored)} />
         </PolicyItem>
       </div>
+      </ReadOnlyFieldset>
     )
   }
 
@@ -209,6 +292,7 @@ function StrategyControls({ tab, config, onChange }: {
       patchPresentation('componentOrder', [...order, ...fixedComponents])
     }
     return (
+      <ReadOnlyFieldset role={role} tab={tab}>
       <div className="s2-control-list" role="tabpanel" aria-label="答案呈现策略">
         <PolicyItem item={item('presentation.groupByPersona')} config={config}>
           <SwitchControl checked={config.presentation.groupByPersona} label="按肤质分组" onChange={() => patchPresentation('groupByPersona', !config.presentation.groupByPersona)} />
@@ -258,25 +342,11 @@ function StrategyControls({ tab, config, onChange }: {
           </ol>
         </PolicyItem>
       </div>
+      </ReadOnlyFieldset>
     )
   }
 
-  const guardrail = item('guardrails.sponsoredPosition')
-  return (
-    <div className="s2-control-list" role="tabpanel" aria-label="护栏规则">
-      <PolicyItem item={guardrail} config={config} className="is-readonly">
-        <div className="s2-readonly-value">
-          <LockKeyhole size={15} />
-          <span>{config.guardrails.sponsoredPosition === 'afterConclusion' ? '结论之后展示' : '结论之前展示'}</span>
-        </div>
-      </PolicyItem>
-      <div className="s2-guardrail-note">
-        <ShieldCheck size={17} />
-        <div><strong>护栏冲突需要讨论，不自动采纳</strong><p>此为社区治理团队（示例）的只读规则。冲突检测只返回待讨论事项，不会替负责人改写规则。</p></div>
-      </div>
-      <div className="s2-guardrail-boundary"><LockKeyhole size={15} /><span>业务可调整商业内容是否保留标注；呈现位置由示例护栏约束。</span></div>
-    </div>
-  )
+  return <GuardrailPanel config={config} />
 }
 
 export function StrategyWorkspace({ onNavigate }: { onNavigate: (page: PageId) => void }) {
@@ -290,6 +360,19 @@ export function StrategyWorkspace({ onNavigate }: { onNavigate: (page: PageId) =
   const openSource = useDemoStore((state) => state.openSource)
   const closeSource = useDemoStore((state) => state.closeSource)
   const resetStrategy = useDemoStore((state) => state.resetStrategy)
+  const role = useDemoStore((state) => state.role)
+  const coverageRun = useDemoStore((state) => state.coverageRun)
+  const draftVersion = useMemo(() => getConfigVersion(draftConfig), [draftConfig])
+  const checkStatus: CheckStatus = !coverageRun
+    ? { kind: 'not-run' }
+    : coverageRun.configVersion === draftVersion
+      ? { kind: 'current', summary: coverageRun.summary }
+      : { kind: 'stale' }
+  const checkStatusText = checkStatus.kind === 'not-run'
+    ? '尚未运行固定样例检查'
+    : checkStatus.kind === 'current'
+      ? `当前草稿已检查：${checkStatus.summary.improved} 提升 / ${checkStatus.summary.same} 持平 / ${checkStatus.summary.regressed} 回归`
+      : '草稿在上次检查后又有改动，需要重跑样例'
 
   const beforeRaw = useMemo(
     () => renderAnswer(BASELINE_CONFIG, MAIN_QUERY, SKINCARE_POSTS, COMPONENTS, POINT_CATALOG, DEMO_AS_OF_DATE),
@@ -308,7 +391,7 @@ export function StrategyWorkspace({ onNavigate }: { onNavigate: (page: PageId) =
   const removedCount = [...beforeKeys].filter((key) => !afterKeys.has(key)).length
   const diffSummary = changedSettings.length === 0
     ? '当前草稿与基线一致；答案内容未发生变化。'
-    : `改动策略：${changedSettings.join('、')}。本题预览新增 ${addedCount} 个要点、移除 ${removedCount} 个要点；这是单题规则预览，不是固定样例检查结果。`
+    : `改动策略：${changedSettings.join('、')}。本题预览新增 ${addedCount} 个要点、移除 ${removedCount} 个要点。`
   const selectedAnswer = previewVersion === 'before' ? before : after
 
   return (
@@ -318,14 +401,13 @@ export function StrategyWorkspace({ onNavigate }: { onNavigate: (page: PageId) =
           <span className="context-icon"><FileSearch size={18} /></span>
           <div><div className="context-label">正在配置的问题场景</div><div className="context-query">{MAIN_QUERY.text}</div></div>
         </div>
-        <div className="context-meta"><span className="meta-chip">护肤</span><span className="meta-chip">选购类</span><span className="meta-dot" /><span>行业运营（示例）</span></div>
+        <div className="context-meta"><span className="meta-chip">护肤</span><span className="meta-chip">选购类</span><span className="meta-dot" /><span>{ROLE_LABELS[role]}</span></div>
       </section>
 
       <div className="s2-workspace-grid">
         <section className="panel s2-editor-panel" aria-labelledby="strategy-editor-title">
           <div className="s2-panel-heading">
-            <div><div className="section-kicker">STRATEGY WORKSPACE</div><h2 id="strategy-editor-title">业务可配置策略</h2><p>调整已有策略位，右侧单题预览即时重算；不会发布或改变线上策略。</p></div>
-            <span className="s2-draft-status"><span className="s2-live-dot" />本地演示草稿</span>
+            <div><h2 id="strategy-editor-title">业务可配置策略</h2><p>调整已有策略位，右侧单题预览即时重算；不会发布或改变线上策略。</p></div>
           </div>
 
           <div className="s2-tab-row" role="tablist" aria-label="策略分类">
@@ -339,14 +421,14 @@ export function StrategyWorkspace({ onNavigate }: { onNavigate: (page: PageId) =
           <StrategyControls tab={activeTab} config={draftConfig} onChange={setDraftConfig} />
 
           <div className="s2-editor-footer">
-            <div><span className="s2-unsaved-dot" /><span>{modified ? '策略草稿已改动；预览已即时更新，尚未运行固定样例检查。' : '当前为初始基线；修改只保存在本地演示状态。'}</span></div>
+            <div><span className="s2-unsaved-dot" /><span>{modified ? `策略草稿已改动，预览已即时更新；${checkStatusText}。` : '当前为初始基线。'}</span></div>
             <button type="button" className="s2-reset-button" onClick={resetStrategy} disabled={!modified}><RotateCcw size={14} />恢复默认配置</button>
           </div>
         </section>
 
         <aside className="s2-preview-column" aria-label="答案变化预览">
           <div className="s2-preview-heading">
-            <div><div className="section-kicker">ANSWER PREVIEW</div><h2>AI 搜答案预览</h2></div>
+            <div><h2>AI 搜答案预览</h2></div>
             <span className="badge badge-outline">手机端</span>
           </div>
           <AnswerPreview
@@ -359,6 +441,7 @@ export function StrategyWorkspace({ onNavigate }: { onNavigate: (page: PageId) =
             onNavigateCoverage={() => onNavigate('coverage')}
             diffSummary={diffSummary}
             isDraftModified={modified}
+            checkStatus={checkStatus}
             labelSponsored={previewVersion === 'before' ? BASELINE_CONFIG.evidence.labelSponsored : draftConfig.evidence.labelSponsored}
             posts={SKINCARE_POSTS}
           />

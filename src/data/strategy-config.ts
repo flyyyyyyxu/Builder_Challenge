@@ -11,7 +11,7 @@ export const BASELINE_CONFIG: StrategyConfig = {
   presentation: {
     groupByPersona: false,
     groupByPersonaAppliesTo: ['选购类', '用法类'],
-    showPitfall: true,
+    showPitfall: false,
     showConclusion: true,
     componentOrder: ['conclusion', 'persona-groups', 'step-list', 'pitfall-card', 'source-footer'],
     groupPointLimit: 2,
@@ -22,7 +22,7 @@ export const BASELINE_CONFIG: StrategyConfig = {
 }
 
 /**
- * This explicit local draft enables persona grouping across shopping and usage questions.
+ * Demo draft from the main line: enables persona grouping and the pitfall reminder.
  * The usage scope is intentionally broad so the fixed regression can be reproduced.
  */
 export const REGRESSION_DEMO_CONFIG: StrategyConfig = {
@@ -32,6 +32,7 @@ export const REGRESSION_DEMO_CONFIG: StrategyConfig = {
     ...BASELINE_CONFIG.presentation,
     groupByPersona: true,
     groupByPersonaAppliesTo: ['选购类', '用法类'],
+    showPitfall: true,
     componentOrder: [...BASELINE_CONFIG.presentation.componentOrder],
   },
   guardrails: { ...BASELINE_CONFIG.guardrails },

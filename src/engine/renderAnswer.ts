@@ -85,7 +85,11 @@ export function renderAnswer(
     renderablePoints.push({ definition, evidence })
   }
 
-  renderablePoints.sort((a, b) => byOrder(a.definition, b.definition))
+  // Within the same order, the persona that matches the question (e.g. 油皮) is shown first.
+  const matchesQuery = (definition: PointDefinition) => Number(Boolean(query.persona) && definition.persona === query.persona)
+  renderablePoints.sort((a, b) => a.definition.order - b.definition.order
+    || matchesQuery(b.definition) - matchesQuery(a.definition)
+    || byOrder(a.definition, b.definition))
   let visiblePoints = renderablePoints
   if (groupedStepRegression) {
     const seenPerPersona = new Map<string, number>()

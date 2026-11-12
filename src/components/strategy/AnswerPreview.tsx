@@ -3,6 +3,17 @@ import { AlertTriangle, ArrowRight, Check, FileSearch, Sparkles } from 'lucide-r
 import type { AnswerPoint, Post, RenderedAnswer } from '../../types'
 import type { PreviewVersion } from '../../store'
 
+export type CheckStatus =
+  | { kind: 'not-run' }
+  | { kind: 'current'; summary: { improved: number; same: number; regressed: number } }
+  | { kind: 'stale' }
+
+function checkStatusLabel(status: CheckStatus): string {
+  if (status.kind === 'not-run') return '样例检查尚未运行'
+  if (status.kind === 'stale') return '草稿已变更 · 需重跑'
+  return status.summary.regressed > 0 ? `已检查 · ${status.summary.regressed} 条回归` : '已检查 · 无回归'
+}
+
 type Props = {
   before: RenderedAnswer
   after: RenderedAnswer
@@ -13,6 +24,7 @@ type Props = {
   onNavigateCoverage: () => void
   diffSummary: string
   isDraftModified: boolean
+  checkStatus: CheckStatus
   labelSponsored: boolean
   posts: Post[]
 }
@@ -99,7 +111,7 @@ function AnswerSection({ section, onOpenSource, postsById, labelSponsored, highl
   )
 }
 
-export function AnswerPreview({ before, after, queryText, mode, onModeChange, onOpenSource, onNavigateCoverage, diffSummary, isDraftModified, labelSponsored, posts }: Props) {
+export function AnswerPreview({ before, after, queryText, mode, onModeChange, onOpenSource, onNavigateCoverage, diffSummary, isDraftModified, checkStatus, labelSponsored, posts }: Props) {
   const answer = mode === 'before' ? before : after
   const postsById = useMemo(() => new Map(posts.map((post) => [post.id, post])), [posts])
   const changedIds = useMemo(() => new Set(answer.sections.flatMap((section) => section.points.filter((point) => point.change !== 'unchanged').map((point) => point.id))), [answer])
@@ -112,7 +124,7 @@ export function AnswerPreview({ before, after, queryText, mode, onModeChange, on
   }, [changedIds])
 
   const hasPoints = answer.sections.some((section) => section.points.length > 0)
-  const stateLabel = mode === 'before' ? '不可变基线' : isDraftModified ? '本地草稿 · 实时预览' : '与基线一致'
+  const stateLabel = mode === 'before' ? '不可变基线' : isDraftModified ? '草稿 · 实时预览' : '与基线一致'
 
   return (
     <div className="s2-preview-card">
@@ -148,7 +160,7 @@ export function AnswerPreview({ before, after, queryText, mode, onModeChange, on
             <div className="s2-empty-answer"><FileSearch size={16} /><span>当前策略条件下没有足够的引用支持此答案。可调整来源条件或隐藏无来源结论。</span></div>
           )}
           <div className="s2-phone-source-footer">
-            <div className="s2-footer-heading"><FileSearch size={13} /><strong>来源底栏</strong><span>可追溯，不代表真实性背书</span></div>
+            <div className="s2-footer-heading"><FileSearch size={13} /><strong>来源底栏</strong></div>
             <div className="s2-footer-counts">
               <span>笔记 {answer.footer.noteCount}</span><span>评论 {answer.footer.commentCount}</span>
               {answer.footer.sponsoredLabeledCount > 0 && <span>合作已标注 {answer.footer.sponsoredLabeledCount}</span>}
@@ -159,8 +171,8 @@ export function AnswerPreview({ before, after, queryText, mode, onModeChange, on
       </div>
 
       <div className="s2-preview-caption"><span>点击结论、分组或提醒可查看对应 mock 原文与规则 trace。</span><span>改动前固定基线 · 改动后实时调用本地引擎</span></div>
-      <button type="button" className="s2-go-coverage" onClick={onNavigateCoverage}>前往覆盖与回归 <ArrowRight size={14} /><span>样例检查尚未运行</span></button>
-      <p className="s2-preview-disclaimer">预览仅反映这条固定问题的本地规则模拟，不等于 8 条样例检查结论。</p>
+      <button type="button" className="s2-go-coverage" onClick={onNavigateCoverage}>前往覆盖与回归 <ArrowRight size={14} /><span className={`s2-check-status is-${checkStatus.kind}${checkStatus.kind === 'current' && checkStatus.summary.regressed > 0 ? ' has-regression' : ''}`}>{checkStatusLabel(checkStatus)}</span></button>
+      <p className="s2-preview-disclaimer">预览只反映这一条问题，不等于 8 条样例的检查结论。</p>
     </div>
   )
 }

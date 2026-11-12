@@ -19,7 +19,7 @@ import { detectConflicts, getConfigVersion, renderAnswer, resolveConfig, reuseRe
 
 describe('mock data contracts', () => {
   it('keeps the agreed source and fixed sample counts, with independent fictional annotations', () => {
-    expect(SKINCARE_POSTS).toHaveLength(25)
+    expect(SKINCARE_POSTS).toHaveLength(27)
     expect(COOKING_POSTS).toHaveLength(15)
     expect(SKINCARE_SAMPLES).toHaveLength(8)
     expect(SKINCARE_SAMPLES.every((sample) => sample.expectedPoints.length > 0)).toBe(true)
@@ -70,6 +70,11 @@ describe('detectConflicts', () => {
 })
 
 describe('renderAnswer', () => {
+  it('keeps the pitfall reminder off at baseline so enabling it is a visible change', () => {
+    const baseline = renderAnswer(BASELINE_CONFIG, SKINCARE_SAMPLES[0], SKINCARE_POSTS, COMPONENTS, POINT_CATALOG, DEMO_AS_OF_DATE)
+    expect(baseline.sections.map((section) => section.componentId)).not.toContain('pitfall-card')
+  })
+
   it('only renders points backed by eligible sources and existing components, with source traces', () => {
     const answer = renderAnswer(REGRESSION_DEMO_CONFIG, SKINCARE_SAMPLES[0], SKINCARE_POSTS, COMPONENTS, POINT_CATALOG, DEMO_AS_OF_DATE)
     const rendered = answer.sections.flatMap((section) => section.points)
@@ -77,6 +82,7 @@ describe('renderAnswer', () => {
     expect(rendered.every((point) => point.evidenceIds.length > 0)).toBe(true)
     expect(rendered.every((point) => COMPONENTS.find((component) => component.id === point.componentId)?.status === 'existing')).toBe(true)
     expect(rendered.find((point) => point.id === 'oil-light-texture')?.trace.length).toBeGreaterThan(0)
+    expect(rendered.find((point) => point.id === 'pilling-pitfall')?.evidenceIds).toHaveLength(3)
     expect(answer.filteredEvidence.some((item) => item.ruleId === 'freshness-window')).toBe(false)
   })
 
@@ -143,6 +149,16 @@ describe('runCoverageCheck', () => {
     expect(run.configVersion).toBe(getConfigVersion(run.configSnapshot))
     run.configSnapshot.presentation.groupByPersonaAppliesTo.push('做法类')
     expect(REGRESSION_DEMO_CONFIG.presentation.groupByPersonaAppliesTo).toEqual(['选购类', '用法类'])
+  })
+
+  it('counts stale citations against the fixed scene standard when the freshness window is loosened', () => {
+    const loose = { ...FIXED_SCOPE_CONFIG, evidence: { ...FIXED_SCOPE_CONFIG.evidence, freshnessDays: '不限' as const } }
+    const run = runCoverageCheck(FIXED_SCOPE_CONFIG, loose, SKINCARE_SAMPLES, SKINCARE_POSTS, COMPONENTS, POINT_CATALOG, DEMO_AS_OF_DATE)
+    const sensitive = run.results.find((result) => result.sampleId === 'skin-q3')!
+    expect(sensitive.staleCountBefore).toBe(0)
+    expect(sensitive.staleCountAfter).toBe(1)
+    expect(sensitive.delta).toBe('regressed')
+    expect(sensitive.reason).toContain('时效标准')
   })
 
   it('re-running after narrowing scope removes the regression without hardcoded result counts', () => {

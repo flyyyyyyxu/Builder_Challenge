@@ -1,4 +1,5 @@
 import type { AnswerPoint, ComponentDef, CoverageRun, PointDefinition, Post, RenderedAnswer, Sample, StrategyConfig } from '../types'
+import { STALE_REFERENCE_DAYS } from '../data/scenes'
 import { renderAnswer } from './renderAnswer'
 
 const DAY_MS = 86_400_000
@@ -45,7 +46,11 @@ function cloneConfig(config: StrategyConfig): StrategyConfig {
   }
 }
 
-function citationMetrics(answer: RenderedAnswer, posts: Post[], asOf: string, config: StrategyConfig) {
+/**
+ * Stale citations are measured against a fixed scene standard rather than the editable
+ * freshness window; otherwise the window would filter every stale post before it could be counted.
+ */
+function citationMetrics(answer: RenderedAnswer, posts: Post[], asOf: string, config: StrategyConfig, staleThresholdDays: number) {
   const postById = new Map(posts.map((post) => [post.id, post]))
   const citations = flattenPoints(answer).flatMap((point) => point.evidenceIds)
   if (citations.length === 0) {
@@ -58,7 +63,7 @@ function citationMetrics(answer: RenderedAnswer, posts: Post[], asOf: string, co
   })
   const staleCount = uniquePosts.filter((post) => {
     const age = Math.floor((Date.parse(`${asOf}T00:00:00Z`) - Date.parse(`${post.date}T00:00:00Z`)) / DAY_MS)
-    return config.evidence.freshnessDays !== '不限' && age > config.evidence.freshnessDays
+    return age > staleThresholdDays
   }).length
   const sponsoredUnlabeled = config.evidence.labelSponsored
     ? 0
@@ -94,6 +99,7 @@ function classify(
 function getReason(delta: 'improved' | 'same' | 'regressed', answer: RenderedAnswer, missedAfter: string[], sample: Sample): string | undefined {
   if (delta === 'improved') return '开启已有分组组件后，更多独立标注的场景要点获得了可追溯来源。'
   if (delta === 'same') return '此样例的覆盖与引用护栏指标未发生变化。'
+  if (missedAfter.length === 0) return '独立标注要点仍全部覆盖，但改动后引用了超出场景时效标准的内容或未标注的商业内容。'
   const omitted = answer.omittedPoints.find((point) => missedAfter.includes(point.pointKey))
   if (omitted) return omitted.reason
   const missingLabel = sample.expectedPoints.find((point) => missedAfter.includes(point.key))?.label
@@ -108,6 +114,7 @@ export function runCoverageCheck(
   components: ComponentDef[],
   pointCatalog: PointDefinition[],
   asOf: string,
+  staleThresholdDays: number = STALE_REFERENCE_DAYS,
 ): CoverageRun {
   const results = samples.map((sample) => {
     const rawBefore = renderAnswer(configBefore, sample, posts, components, pointCatalog, asOf)
@@ -118,8 +125,8 @@ export function runCoverageCheck(
     const coveredAfter = coveredExpected(sample, diff.after, posts)
     const missedBefore = expectedPointKeys.filter((key) => !coveredBefore.includes(key))
     const missedAfter = expectedPointKeys.filter((key) => !coveredAfter.includes(key))
-    const beforeMetrics = citationMetrics(diff.before, posts, asOf, configBefore)
-    const afterMetrics = citationMetrics(diff.after, posts, asOf, configAfter)
+    const beforeMetrics = citationMetrics(diff.before, posts, asOf, configBefore, staleThresholdDays)
+    const afterMetrics = citationMetrics(diff.after, posts, asOf, configAfter, staleThresholdDays)
     const delta = classify(coveredBefore, coveredAfter, expectedPointKeys.length, beforeMetrics, afterMetrics)
 
     return {

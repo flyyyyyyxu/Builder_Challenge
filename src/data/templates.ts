@@ -20,7 +20,7 @@ export const COOKING_REUSE_TARGET: ReuseTargetScene = {
   plannedComponentIds: COMPONENTS.filter((component) => component.status === 'planned').map((component) => component.id),
   requiredCapabilityIds: ['source-tracing', 'fixed-sample-check'],
   configChanges: [
-    { key: 'presentation.groupByPersona', from: '按肤质分组', to: '按器具/步骤组织' },
+    { key: 'presentation.groupByPersona', from: '按肤质分组', to: '按器具分组' },
     { key: 'presentation.groupByPersonaAppliesTo', from: '选购类', to: '做法类' },
     { key: 'sampleSet', from: '护肤固定样例集', to: '家常菜做法样例集（需重配）' },
   ],

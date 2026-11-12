@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ArrowRight, Check, CircleAlert, CircleCheck, ClipboardCheck, RefreshCw, ShieldAlert, Sparkles } from 'lucide-react'
 import { BASELINE_CONFIG } from '../../data/strategy-config'
-import { COMPONENTS, DEMO_AS_OF_DATE, POINT_CATALOG, SKINCARE_POSTS, SKINCARE_SAMPLES } from '../../data'
+import { COMPONENTS, DEMO_AS_OF_DATE, POINT_CATALOG, SKINCARE_POSTS, SKINCARE_SAMPLES, STALE_REFERENCE_DAYS } from '../../data'
 import { getConfigVersion, runCoverageCheck } from '../../engine'
 import { useDemoStore } from '../../store'
 import type { CoverageRun, RenderedAnswer, Sample, SampleResult, StrategyConfig } from '../../types'
@@ -53,7 +53,6 @@ function CoveragePage() {
   const setDraftConfig = useDemoStore((state) => state.setDraftConfig)
   const setCoverageRun = useDemoStore((state) => state.setCoverageRun)
   const setSelectedSampleId = useDemoStore((state) => state.setSelectedSampleId)
-  const setFlowStep = useDemoStore((state) => state.setFlowStep)
   const navigate = useDemoStore((state) => state.navigate)
   const [runNotice, setRunNotice] = useState<RunNotice | null>(null)
 
@@ -85,7 +84,6 @@ function CoveragePage() {
       : nextRun.results.find((result) => result.delta === 'regressed')?.sampleId ?? nextRun.results[0]?.sampleId ?? null
     setCoverageRun(nextRun)
     setSelectedSampleId(preferred)
-    setFlowStep(nextRegressionCount > 0 ? 2 : previousRun ? 2 : 1)
 
     const priorTarget = previousRun?.results.find((result) => result.sampleId === REGRESSION_SAMPLE_ID)
     const nextTarget = nextRun.results.find((result) => result.sampleId === REGRESSION_SAMPLE_ID)
@@ -127,21 +125,19 @@ function CoveragePage() {
   }
 
   return (
-    <section className="coverage-page" aria-labelledby="coverage-page-title">
+    <section className="coverage-page" aria-labelledby="workspace-page-title">
       <div className="coverage-page-intro">
         <div>
-          <div className="coverage-title-line"><ClipboardCheck size={18} /><span>策略覆盖与回归检查（概念原型）</span></div>
           <p>运行 8 条独立标注的护肤固定样例，查看当前草稿对要点覆盖与引用护栏的影响。</p>
         </div>
         <div className="coverage-intro-badges">
-          <span className="coverage-pill"><span className="coverage-pill-dot" />本地规则模拟</span>
           <span className="coverage-pill coverage-pill-outline">数据基准 {DEMO_AS_OF_DATE}</span>
         </div>
       </div>
 
       <div className="coverage-disclaimer" role="note">
         <ShieldAlert size={17} />
-        <span>用于检查策略改动对固定样例的影响，不代表语义判断准确率。期望要点由场景负责人角色独立标注（演示数据）。</span>
+        <span>用于检查策略改动对固定样例的影响，不代表语义判断准确率。样例集由场景负责人维护并独立标注期望要点，改动人不能单独判定通过；具体责任人待与业务确认。</span>
       </div>
 
       {coverageRun && isStale && (
@@ -163,7 +159,6 @@ function CoveragePage() {
         <div className="coverage-empty panel">
           <div className="coverage-empty-icon"><ClipboardCheck size={24} /></div>
           <div className="coverage-empty-copy">
-            <span className="section-kicker">FIXED SAMPLE SET · 8 CASES</span>
             <h2>样例尚未按当前草稿运行</h2>
             <p>{draftConfig.presentation.groupByPersona
               ? '当前草稿已启用按肤质分组。运行后将逐条计算提升、持平或回归，并记录本次配置版本。'
@@ -177,15 +172,15 @@ function CoveragePage() {
       ) : (
         <>
           <section className="coverage-run-heading">
-            <div><span className="section-kicker">LATEST RULE-SIMULATION RUN</span><h2>最近一次运行结果</h2><p>配置版本 <code>{coverageRun.configVersion}</code> · 样例期望要点与规则输出分开维护</p></div>
-            <button type="button" className="coverage-button coverage-button-primary" onClick={handleRun}><RefreshCw size={15} />按当前草稿重跑 8 条</button>
+            <div><h2>最近一次运行结果</h2><p>配置版本 <code>{coverageRun.configVersion}</code> · 样例期望要点与规则输出分开维护</p></div>
+            {!isStale && <button type="button" className="coverage-button coverage-button-quiet" onClick={handleRun}><RefreshCw size={15} />重新运行</button>}
           </section>
 
           {aggregate && <CoverageMetrics run={coverageRun} aggregate={aggregate} />}
 
           <div className="coverage-results-grid">
             <section className="coverage-sample-list panel" aria-labelledby="sample-list-title">
-              <div className="coverage-panel-heading"><div><span className="section-kicker">FIXED SAMPLE SET</span><h3 id="sample-list-title">护肤样例 · {coverageRun.results.length} 条</h3></div><span className="coverage-count-badge">独立标注</span></div>
+              <div className="coverage-panel-heading"><div><h3 id="sample-list-title">护肤样例 · {coverageRun.results.length} 条</h3></div><span className="coverage-count-badge">独立标注</span></div>
               <div className="coverage-sample-list-body">
                 {SKINCARE_SAMPLES.map((sample) => {
                   const result = coverageRun.results.find((item) => item.sampleId === sample.id)
@@ -221,10 +216,10 @@ function CoveragePage() {
           </div>
 
           <details className="coverage-maintenance panel">
-            <summary>样例维护机制与判断边界</summary>
+            <summary>指标口径与判断边界</summary>
             <div className="coverage-maintenance-body">
               <p>样例由场景负责人维护，改动人不应单独判定通过；线上问题可以补入样例集，具体责任人待业务确认。本页面只模拟固定 mock 样例，不判断原帖真实性、语义质量或上线收益。</p>
-              <p>覆盖按“有独立期望要点且至少关联一条可追溯引用”计算；陈旧引用和未标注商业内容按当前配置窗口逐样例汇总。</p>
+              <p>覆盖按“有独立期望要点且至少关联一条可追溯引用”计算；陈旧引用对照固定的场景时效标准（示例 {STALE_REFERENCE_DAYS} 天），不随草稿里的时效窗口变化，放宽窗口时会被检出；未标注商业内容逐样例汇总。</p>
             </div>
           </details>
         </>
@@ -240,7 +235,7 @@ function CoverageMetrics({ run, aggregate }: { run: CoverageRun; aggregate: Retu
     <div className="coverage-metrics-grid" aria-label="总体检查指标">
       <MetricCard label="独立要点覆盖" before={beforeCoverage} after={afterCoverage} helper="覆盖 / 期望要点总数" />
       <MetricCard label="引用可追溯率" before={formatRate(aggregate.traceableBefore)} after={formatRate(aggregate.traceableAfter)} helper="非空样例等权平均" />
-      <MetricCard label="陈旧引用" before={String(aggregate.staleBefore)} after={String(aggregate.staleAfter)} helper="逐样例合计，按当前时效窗口" />
+      <MetricCard label="陈旧引用" before={String(aggregate.staleBefore)} after={String(aggregate.staleAfter)} helper={`引用发布超过 ${STALE_REFERENCE_DAYS} 天（场景时效标准）`} />
       <MetricCard label="商业内容未标注" before={String(aggregate.sponsoredBefore)} after={String(aggregate.sponsoredAfter)} helper="逐样例合计" />
       <div className="coverage-delta-summary">
         <span className="section-kicker">本次变化 · {run.results.length} 条样例</span>
@@ -290,7 +285,7 @@ function CoverageDetail({
 
   return (
     <article className="coverage-detail-panel panel" aria-labelledby="coverage-detail-title">
-      <div className="coverage-detail-topline"><div><span className="section-kicker">SAMPLE TRACE</span><span className={`coverage-delta-label is-${result.delta}`}>{deltaLabel(result.delta)}</span></div><span className="coverage-config-chip">运行配置 {run.configVersion}</span></div>
+      <div className="coverage-detail-topline"><div><span className={`coverage-delta-label is-${result.delta}`}>{deltaLabel(result.delta)}</span></div><span className="coverage-config-chip">运行配置 {run.configVersion}</span></div>
       <h3 id="coverage-detail-title">{sample.text}</h3>
 
       <section className="coverage-detail-block">
@@ -316,7 +311,7 @@ function CoverageDetail({
       </section>
 
       <section className={`coverage-cause-block ${result.delta === 'regressed' ? 'is-regression' : 'is-explanation'}`}>
-        <div className="coverage-detail-step"><span>03</span><h4>{result.delta === 'regressed' ? '回归原因（规则模拟）' : '变化解释'}</h4></div>
+        <div className="coverage-detail-step"><span>03</span><h4>{result.delta === 'regressed' ? '回归原因' : '变化解释'}</h4></div>
         <p>{result.reason}</p>
         {result.missedAfter.map((key) => {
           const omitted = result.after.omittedPoints.find((point) => point.pointKey === key)

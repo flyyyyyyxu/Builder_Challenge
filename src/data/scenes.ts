@@ -2,6 +2,13 @@ import type { Query, Scene } from '../types'
 
 export const DEMO_AS_OF_DATE = '2026-11-12'
 
+/**
+ * Scene-level freshness standard used by the coverage check (example value).
+ * It is independent of the editable freshness window, so loosening the window
+ * surfaces stale citations instead of hiding them.
+ */
+export const STALE_REFERENCE_DAYS = 180
+
 export const SCENES: Scene[] = [
   {
     id: 'skincare-shopping',

@@ -52,7 +52,7 @@ export function EvidenceDrawer({ point, answer, posts, onClose }: Props) {
       <button type="button" className="s2-drawer-scrim" aria-label="关闭溯源面板" onClick={onClose} />
       <aside className="s2-evidence-drawer" role="dialog" aria-modal="true" aria-labelledby="s2-drawer-title">
         <header className="s2-drawer-header">
-          <div><div className="section-kicker">EVIDENCE TRACE</div><h2 id="s2-drawer-title">引用来源与规则 trace</h2></div>
+          <div><h2 id="s2-drawer-title">引用来源与规则 trace</h2></div>
           <button ref={closeRef} type="button" className="s2-drawer-close" aria-label="关闭溯源面板" onClick={onClose}><X size={18} /></button>
         </header>
         <div className="s2-drawer-scroll">

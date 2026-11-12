@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, BadgeCheck, Boxes, Check, ChefHat, CircleHelp, FileCheck2, LockKeyhole, Utensils } from 'lucide-react'
+import { ArrowLeft, ArrowRight, BadgeCheck, Boxes, Check, ChefHat, FileCheck2, LockKeyhole, Utensils } from 'lucide-react'
 import { COOKING_POSTS, COOKING_QUERY, COOKING_REUSE_TARGET, COMPONENTS, CAPABILITIES, DEMO_AS_OF_DATE, POINT_CATALOG, SCENES, SKINCARE_TEMPLATE } from '../../data'
 import { getConfigVersion, renderAnswer, reuseReport as buildReuseReport } from '../../engine'
 import { useDemoStore, type ReuseWizardStep } from '../../store'
@@ -24,7 +24,7 @@ const COMPONENT_EXPLANATIONS: Record<string, string> = {
 }
 
 const CHANGE_LABELS: Record<string, string> = {
-  'presentation.groupByPersona': '分组维度',
+  'presentation.groupByPersona': '分组维度（同一分组能力）',
   'presentation.groupByPersonaAppliesTo': '适用问题类别',
   sampleSet: '固定样例集',
 }
@@ -34,8 +34,9 @@ function cloneForCooking(config: StrategyConfig): StrategyConfig {
     evidence: { ...config.evidence, allowedKinds: [...config.evidence.allowedKinds] },
     presentation: {
       ...config.presentation,
-      groupByPersona: false,
-      groupByPersonaAppliesTo: [],
+      // Matches the “改配置” column: same grouping capability, dimension switched to utensil, scope 做法类.
+      groupByPersona: true,
+      groupByPersonaAppliesTo: ['做法类'],
       componentOrder: ['conclusion', 'step-list', 'pitfall-card', 'source-footer'],
     },
     guardrails: { ...config.guardrails },
@@ -46,12 +47,15 @@ function formatPercent(value: number): string {
   return `${Math.round(value * 100)}%`
 }
 
+const GENERAL_GROUP = '通用步骤'
+
+/** A step belongs to a utensil group only when every cited source names that same utensil. */
 function getUtensilGroup(point: AnswerPoint): string {
-  const evidence = point.evidenceIds.flatMap((id) => {
-    const source = COOKING_POSTS.find((post) => post.id === id)
-    return source ? [source] : []
-  })
-  return evidence.find((source) => source.persona)?.persona ?? '器具未标注'
+  const utensils = new Set(point.evidenceIds.flatMap((id) => {
+    const persona = COOKING_POSTS.find((post) => post.id === id)?.persona
+    return persona && persona !== '通用' ? [persona] : ['通用']
+  }))
+  return utensils.size === 1 && !utensils.has('通用') ? [...utensils][0] : GENERAL_GROUP
 }
 
 function ReuseWizard() {
@@ -86,14 +90,7 @@ function ReuseWizard() {
   const isReportReady = report !== null && cookingAnswer !== null
 
   return (
-    <section className="reuse-wizard" aria-labelledby="reuse-wizard-title">
-      <div className="reuse-wizard-intro">
-        <div><div className="reuse-title-line"><Boxes size={18} /><span>跨场景复用向导（概念原型）</span></div><p>从明确的来源模板版本出发；复用比例仅按现有能力计算，不代表线上收益。</p></div>
-        <div className="reuse-version-pill"><LockKeyhole size={13} />本地草稿 · 不发布</div>
-      </div>
-
-      <div className="reuse-trust-note" role="note"><CircleHelp size={16} /><span>来源模板、人员角色和家常菜内容均为演示数据。本向导不会把尚未验证的策略草稿冒充为正式模板。</span></div>
-
+    <section className="reuse-wizard" aria-labelledby="workspace-page-title">
       <nav className="reuse-wizard-steps" aria-label="跨场景复用步骤">
         {WIZARD_STEPS.map((step, index) => {
           const completed = reuseWizardStep > step.id || (step.id === 3 && isReportReady)
@@ -107,11 +104,10 @@ function ReuseWizard() {
 
       {reuseWizardStep === 1 && (
         <section className="reuse-step-panel panel" aria-labelledby="reuse-source-title">
-          <div className="reuse-step-heading"><span className="section-kicker">STEP 01 · SOURCE TEMPLATE</span><h2 id="reuse-source-title">选择一个明确版本的来源模板</h2><p>当前策略草稿与模板版本分开；这里固定选择一个虚构的护肤答案模板。</p></div>
+          <div className="reuse-step-heading"><h2 id="reuse-source-title">选择一个明确版本的来源模板</h2><p>当前策略草稿与模板版本分开；这里固定选择一个虚构的护肤答案模板。</p></div>
           <button type="button" className={`reuse-template-choice ${selectedTemplateId === SKINCARE_TEMPLATE.id ? 'is-selected' : ''}`} onClick={() => setSelectedTemplateId(SKINCARE_TEMPLATE.id)} aria-pressed={selectedTemplateId === SKINCARE_TEMPLATE.id}>
             <span className="reuse-radio" aria-hidden="true">{selectedTemplateId === SKINCARE_TEMPLATE.id && <span />}</span>
             <span className="reuse-template-choice-main"><strong>{SKINCARE_TEMPLATE.name}</strong><small>来源场景：护肤 · 选购怎么选 · 示例模板 ID：{SKINCARE_TEMPLATE.id}</small><span className="reuse-template-meta"><span><BadgeCheck size={12} />示例模板</span><span>配置指纹 <code>{sourceVersion}</code></span></span></span>
-            <span className="reuse-example-tag">虚构示例</span>
           </button>
           <div className="reuse-source-boundary"><LockKeyhole size={15} /><span>来源配置取自固定模板快照（配置指纹 {sourceVersion}），不是当前可编辑草稿；模板没有发布或线上版本含义。</span></div>
           <div className="reuse-step-actions"><span>下一步将确认固定目标“家常菜 → 做法步骤”。</span><button type="button" className="reuse-button reuse-button-primary" onClick={chooseTemplate} disabled={!selectedTemplateId}>选用此模板并继续 <ArrowRight size={15} /></button></div>
@@ -120,7 +116,7 @@ function ReuseWizard() {
 
       {reuseWizardStep === 2 && (
         <section className="reuse-step-panel panel" aria-labelledby="reuse-target-title">
-          <div className="reuse-step-heading"><span className="section-kicker">STEP 02 · TARGET SCENE</span><h2 id="reuse-target-title">确认目标场景和问题</h2><p>目标是预设的家常菜做法场景；不接受任意自然语言输入，避免把不存在的 mock 来源误展示为证据。</p></div>
+          <div className="reuse-step-heading"><h2 id="reuse-target-title">确认目标场景和问题</h2><p>目标是预设的家常菜做法场景；不接受任意自然语言输入，避免把不存在的 mock 来源误展示为证据。</p></div>
           <div className="reuse-target-summary">
             <div className="reuse-scene-side"><span className="reuse-scene-label">来源模板</span><div className="reuse-scene-icon is-source"><SproutIcon /></div><strong>护肤 <i>→</i> 选购怎么选</strong><small>{SKINCARE_TEMPLATE.name} · {sourceVersion}</small></div>
             <div className="reuse-transfer-arrow"><ArrowRight size={19} /><span>复用已有能力</span></div>
@@ -128,7 +124,7 @@ function ReuseWizard() {
               <span className="reuse-query-id">样例问题 ID · {COOKING_QUERY.id}</span>
             </div>
           </div>
-          <div className="reuse-confirm-boundaries"><div><Check size={14} /><span>保留已有引用溯源与步骤列表能力</span></div><div><Check size={14} /><span>分组维度从肤质调整为器具 / 步骤</span></div><div className="is-planned"><span className="reuse-dash-icon" /><span>参数分布条仍是待研发扩展点</span></div></div>
+          <div className="reuse-confirm-boundaries"><div><Check size={14} /><span>保留已有引用溯源与步骤列表能力</span></div><div><Check size={14} /><span>分组维度从肤质调整为器具</span></div><div className="is-planned"><span className="reuse-dash-icon" /><span>参数分布条仍是待研发扩展点</span></div></div>
           <div className="reuse-step-actions"><button type="button" className="reuse-button reuse-button-quiet" onClick={() => setReuseWizardStep(1)}><ArrowLeft size={14} />返回来源模板</button><span>当前目标只有这组固定 mock 来源。</span><button type="button" className="reuse-button reuse-button-primary" onClick={confirmTarget}>确认目标场景 <ArrowRight size={15} /></button></div>
         </section>
       )}
@@ -136,7 +132,7 @@ function ReuseWizard() {
       {reuseWizardStep === 3 && selectedTemplate && (
         <section className="reuse-report-stage" aria-labelledby="reuse-report-title">
           <div className="reuse-report-toolbar panel">
-            <div><span className="section-kicker">STEP 03 · REUSE REPORT</span><h2 id="reuse-report-title">生成复用清单与目标答案预览</h2><p>来源：{selectedTemplate.name} · {sourceVersion}　｜　目标：{targetScene.vertical} · {targetScene.intent} · “{COOKING_QUERY.text}”</p></div>
+            <div><h2 id="reuse-report-title">生成复用清单与目标答案预览</h2><p>来源：{selectedTemplate.name} · {sourceVersion}　｜　目标：{targetScene.vertical} · {targetScene.intent} · “{COOKING_QUERY.text}”</p></div>
             <div className="reuse-report-actions"><button type="button" className="reuse-button reuse-button-quiet" onClick={() => setReuseWizardStep(2)}><ArrowLeft size={14} />返回目标确认</button><button type="button" className="reuse-button reuse-button-primary" onClick={generateReport}><FileCheck2 size={15} />{report ? '重新生成复用清单' : '生成复用清单'}</button></div>
           </div>
 
@@ -146,19 +142,19 @@ function ReuseWizard() {
             <>
               <ReuseShare report={report} />
               <div className="reuse-report-grid" aria-label="复用能力清单">
-                <ReuseColumn title="直接复用" kicker="EXISTING · AS IS" count={report.reusedAsIs.length} tone="green">
+                <ReuseColumn title="直接复用" kicker="已有能力 · 原样带走" count={report.reusedAsIs.length} tone="green">
                   {report.reusedAsIs.map((item) => <article className="reuse-report-item" key={`${item.kind}-${item.id}`}><span className="reuse-item-status is-existing"><Check size={11} /></span><div><strong>{item.name}</strong><small>{COMPONENT_EXPLANATIONS[item.id] ?? '已有能力，不更改组件状态。'}</small><code>{item.kind} · {item.id}</code></div></article>)}
                 </ReuseColumn>
-                <ReuseColumn title="改配置" kicker="RECONFIGURE" count={report.reconfigured.length} tone="amber">
+                <ReuseColumn title="改配置" kicker="已有能力 · 调整参数" count={report.reconfigured.length} tone="amber">
                   {report.reconfigured.map((item) => <article className="reuse-report-item" key={item.key}><span className="reuse-item-status is-reconfigured"><ArrowRight size={12} /></span><div><strong>{CHANGE_LABELS[item.key] ?? item.key}</strong><small><span className="reuse-from-value">{item.from}</span><ArrowRight size={11} /><span className="reuse-to-value">{item.to}</span></small><code>{item.key}</code></div></article>)}
                 </ReuseColumn>
-                <ReuseColumn title="待研发扩展点" kicker="PLANNED · NOT INCLUDED" count={report.plannedExtensions.length} tone="planned">
+                <ReuseColumn title="待研发扩展点" kicker="不计入复用占比" count={report.plannedExtensions.length} tone="planned">
                   {report.plannedExtensions.map((item) => <article className="reuse-report-item is-planned" key={item.id}><span className="reuse-item-status is-planned"><span className="reuse-dash-icon" /></span><div><strong>{item.name}</strong><small>{item.reason}</small><code>planned · {item.id}</code></div></article>)}
                   <p className="reuse-planned-footnote">虚线边框为概念占位，不属于现有答案组件，也不进入复用占比。</p>
                 </ReuseColumn>
               </div>
 
-              {cookingAnswer && <CookingAnswerPreview answer={cookingAnswer} onOpenSource={setSourcePoint} />}
+              {cookingAnswer && <CookingAnswerPreview answer={cookingAnswer} groupByUtensil={targetConfig.presentation.groupByPersona && targetConfig.presentation.groupByPersonaAppliesTo.includes(COOKING_QUERY.category)} onOpenSource={setSourcePoint} />}
               <div className="reuse-report-footer"><span>模板版本固定于 {sourceVersion}；家常菜答案仅使用 existing 组件和可追溯 mock 来源。</span><button type="button" className="reuse-button reuse-button-quiet" onClick={() => setReuseWizardStep(1)}>重新选择来源模板</button></div>
             </>
           )}
@@ -186,34 +182,35 @@ function ReuseColumn({ title, kicker, count, tone, children }: { title: string; 
   return <section className={`reuse-report-column is-${tone}`}><header><div><span>{kicker}</span><h3>{title}</h3></div><strong>{count}</strong></header><div className="reuse-report-items">{count > 0 ? children : <p className="reuse-column-empty">此目标没有对应项目。</p>}</div></section>
 }
 
-function CookingAnswerPreview({ answer, onOpenSource }: { answer: RenderedAnswer; onOpenSource: (point: AnswerPoint) => void }) {
+function CookingAnswerPreview({ answer, groupByUtensil, onOpenSource }: { answer: RenderedAnswer; groupByUtensil: boolean; onOpenSource: (point: AnswerPoint) => void }) {
   const conclusion = answer.sections.find((section) => section.componentId === 'conclusion')
   const steps = answer.sections.find((section) => section.componentId === 'step-list')
   const pitfalls = answer.sections.find((section) => section.componentId === 'pitfall-card')
   const groupedSteps = new Map<string, AnswerPoint[]>()
   for (const point of steps?.points ?? []) {
-    const group = getUtensilGroup(point)
+    const group = groupByUtensil ? getUtensilGroup(point) : GENERAL_GROUP
     const current = groupedSteps.get(group) ?? []
     current.push(point)
     groupedSteps.set(group, current)
   }
+  const orderedGroups = [...groupedSteps.entries()].sort(([a], [b]) => Number(b === GENERAL_GROUP) - Number(a === GENERAL_GROUP))
   const sourceCount = answer.sections.flatMap((section) => section.points).reduce((sum, point) => sum + point.evidenceIds.length, 0)
 
   return <section className="reuse-preview-panel panel" aria-labelledby="reuse-answer-title">
-    <div className="reuse-preview-heading"><div><span className="section-kicker">TARGET ANSWER · EXISTING COMPONENTS</span><h3 id="reuse-answer-title">家常菜答案预览</h3><p>问题：{COOKING_QUERY.text} · 展示内容均来自已标注的本地 mock 来源</p></div><span className="reuse-existing-badge"><Check size={12} />existing 组件</span></div>
+    <div className="reuse-preview-heading"><div><h3 id="reuse-answer-title">家常菜答案预览</h3><p>问题：{COOKING_QUERY.text} · 展示内容均来自已标注的本地 mock 来源</p></div><span className="reuse-existing-badge"><Check size={12} />existing 组件</span></div>
     <div className="reuse-preview-layout">
-      <div className="reuse-phone-wrap"><div className="reuse-phone-frame"><div className="reuse-phone-top"><span className="reuse-phone-camera" /><span>社区答案 · 示例</span></div><div className="reuse-phone-content">
+      <div className="reuse-phone-wrap"><div className="reuse-phone-frame"><div className="reuse-phone-top"><span className="reuse-phone-camera" /><span>小红书 AI 搜</span></div><div className="reuse-phone-content">
         <div className="reuse-phone-kicker">问题</div><h4 className="reuse-phone-query">{COOKING_QUERY.text}</h4><div className="reuse-phone-state"><span />模板复用演示 · 内容来自 15 条 mock 来源</div>
         {conclusion && <section className="reuse-answer-section is-conclusion"><div className="reuse-section-title"><span className="reuse-section-dot" /><strong>{conclusion.title}</strong><span>existing</span></div>{conclusion.points.map((point) => <AnswerAction key={point.id} point={point} onClick={() => onOpenSource(point)} />)}</section>}
         {steps && <section className="reuse-answer-section is-steps"><div className="reuse-section-title"><span className="reuse-section-dot" /><strong>{steps.title}</strong><span>existing</span></div>
-          {[...groupedSteps.entries()].map(([group, points]) => <div className="reuse-utensil-group" key={group}><div className="reuse-utensil-label"><ChefHat size={12} />器具示例 · {group}</div><ol>{points.map((point) => <li key={point.id}><AnswerAction point={point} onClick={() => onOpenSource(point)} /></li>)}</ol></div>)}
+          {orderedGroups.map(([group, points]) => <div className="reuse-utensil-group" key={group}><div className="reuse-utensil-label"><ChefHat size={12} />{group === GENERAL_GROUP ? group : `器具 · ${group}`}</div><ol>{points.map((point) => <li key={point.id}><AnswerAction point={point} onClick={() => onOpenSource(point)} /></li>)}</ol></div>)}
         </section>}
         {pitfalls && pitfalls.points.length > 0 && <section className="reuse-answer-section is-pitfall"><div className="reuse-section-title"><span className="reuse-section-dot" /><strong>{pitfalls.title}</strong><span>existing</span></div>{pitfalls.points.map((point) => <AnswerAction key={point.id} point={point} onClick={() => onOpenSource(point)} />)}</section>}
-        <div className="reuse-source-footer"><div><strong>引用来源</strong><span>{answer.footer.noteCount} 笔记 · {answer.footer.commentCount} 评论</span></div><small>{sourceCount} 个引用关联 · 最近示例 {answer.footer.latestDate ?? '—'}</small><small>来源均为虚构 mock，不代表平台为原帖真实性背书。</small></div>
+        <div className="reuse-source-footer"><div><strong>引用来源</strong><span>{answer.footer.noteCount} 笔记 · {answer.footer.commentCount} 评论</span></div><small>{sourceCount} 个引用关联 · 最近示例 {answer.footer.latestDate ?? '—'}</small></div>
       </div></div></div>
-      <aside className="reuse-preview-aside"><div className="reuse-aside-card"><span className="reuse-aside-kicker">WHAT CARRIES OVER</span><h4>当前答案主体仅包含已有能力</h4><ul>{answer.sections.map((section) => <li key={section.componentId}><span className="reuse-status-dot" /><span>{section.title}</span><code>{section.status}</code></li>)}</ul><p>点击答案要点可检查来源原文、立场、时间和规则 trace。</p></div>
+      <aside className="reuse-preview-aside"><div className="reuse-aside-card"><span className="reuse-aside-kicker">带走了什么</span><h4>当前答案主体仅包含已有能力</h4><ul>{answer.sections.map((section) => <li key={section.componentId}><span className="reuse-status-dot" /><span>{section.title}</span><code>{section.status}</code></li>)}</ul><p>点击答案要点可检查来源原文、立场、时间和规则 trace。</p></div>
         <div className="reuse-planned-preview"><div className="reuse-planned-preview-heading"><span className="reuse-dash-icon" /><div><strong>做法参数分布条</strong><small>待研发概念占位 · 不在答案主体中</small></div><span className="reuse-planned-label">planned</span></div><div className="reuse-planned-placeholder"><span>待研发能力位</span><small>未接入参数数据，不展示虚构比例</small></div></div>
-        <div className="reuse-target-note"><Utensils size={14} /><span>器具组标签来自 mock 来源元数据；当前演示数据仅含“蒸锅”示例。</span></div>
+        <div className="reuse-target-note"><Utensils size={14} /><span>按器具分组复用了护肤的分组能力，只把维度从肤质换成器具：所有来源都指向同一器具的步骤归入该器具，其余归入通用步骤。器具标签来自 mock 来源元数据。</span></div>
       </aside>
     </div>
   </section>

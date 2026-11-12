@@ -4,10 +4,8 @@ import {
   CircleHelp,
   ClipboardCheck,
   Clock3,
-  FlaskConical,
   Home,
   Layers3,
-  LockKeyhole,
   RotateCcw,
   Settings2,
   Sprout,
@@ -19,8 +17,9 @@ import { CoveragePage } from './components/coverage/CoveragePage'
 import { ProductHome } from './components/home/ProductHome'
 import { ReuseWizard } from './components/reuse/ReuseWizard'
 import { StrategyWorkspace } from './components/strategy/StrategyWorkspace'
-import { SCENES } from './data'
-import { type PageId, type WorkflowStep, useDemoStore } from './store'
+import { BASELINE_CONFIG, SCENES } from './data'
+import { getConfigVersion } from './engine'
+import { type DemoRole, type PageId, ROLE_LABELS, useDemoStore } from './store'
 
 const navigation: { id: PageId; label: string; icon: typeof Settings2 }[] = [
   { id: 'strategy', label: '策略配置', icon: Settings2 },
@@ -28,12 +27,35 @@ const navigation: { id: PageId; label: string; icon: typeof Settings2 }[] = [
   { id: 'reuse', label: '跨场景复用', icon: Boxes },
 ]
 
-const steps: { number: string; title: string; page: PageId; flowStep: WorkflowStep }[] = [
-  { number: '01', title: '配置策略与溯源', page: 'strategy', flowStep: 0 },
-  { number: '02', title: '检查覆盖与回归', page: 'coverage', flowStep: 1 },
-  { number: '03', title: '定位并修复回归', page: 'coverage', flowStep: 2 },
-  { number: '04', title: '复用到新场景', page: 'reuse', flowStep: 3 },
+type DemoStep = { number: string; title: string; page: Exclude<PageId, 'home'> }
+
+/** Demo main line: one task per workspace module, in the order of demo-plan §4 (①②③). */
+const steps: DemoStep[] = [
+  { number: '01', title: '配置策略、查看依据', page: 'strategy' },
+  { number: '02', title: '发现并修复回归', page: 'coverage' },
+  { number: '03', title: '复用到新场景', page: 'reuse' },
 ]
+
+/** Derives each step's progress from real demo state rather than from which button was clicked last. */
+function useStepProgress(): Record<DemoStep['page'], { done: boolean; status: string }> {
+  const draftConfig = useDemoStore((state) => state.draftConfig)
+  const coverageRun = useDemoStore((state) => state.coverageRun)
+  const reuseReport = useDemoStore((state) => state.reuseReport)
+  const modified = JSON.stringify(draftConfig) !== JSON.stringify(BASELINE_CONFIG)
+  const runIsCurrent = coverageRun !== null && coverageRun.configVersion === getConfigVersion(draftConfig)
+  const coverage = !coverageRun
+    ? { done: false, status: '样例未运行' }
+    : !runIsCurrent
+      ? { done: false, status: '草稿已变更，需重跑' }
+      : coverageRun.summary.regressed > 0
+        ? { done: false, status: `发现 ${coverageRun.summary.regressed} 条回归` }
+        : { done: true, status: '当前草稿无回归' }
+  return {
+    strategy: { done: modified, status: modified ? '草稿已改动' : '基线配置' },
+    coverage,
+    reuse: { done: reuseReport !== null, status: reuseReport ? '已生成复用清单' : '未生成清单' },
+  }
+}
 
 const pageCopy: Record<Exclude<PageId, 'home'>, { title: string; subtitle: string }> = {
   strategy: {
@@ -54,8 +76,9 @@ function App() {
   const activePage = useDemoStore((state) => state.activePage)
   const navigate = useDemoStore((state) => state.navigate)
   const resetDemo = useDemoStore((state) => state.resetDemo)
-  const flowStep = useDemoStore((state) => state.flowStep)
-  const setFlowStep = useDemoStore((state) => state.setFlowStep)
+  const stepProgress = useStepProgress()
+  const role = useDemoStore((state) => state.role)
+  const setRole = useDemoStore((state) => state.setRole)
   const openWorkspacePage = (page: Exclude<PageId, 'home'>) => {
     if (window.location.hash) {
       window.history.replaceState(window.history.state, '', `${window.location.pathname}${window.location.search}`)
@@ -91,33 +114,29 @@ function App() {
         </nav>
         <div className="sidebar-spacer" />
         <div className="sidebar-note"><div className="sidebar-note-icon"><CircleHelp size={16} /></div><div><strong>演示主线</strong><p>让策略改动看得见，让固定样例里的回归查得到。</p></div></div>
-        <div className="prototype-status"><span className="status-dot" />规则模拟原型</div>
       </aside>
 
       <div className="main-shell">
         <header className="topbar">
           <div className="breadcrumb"><span className="breadcrumb-label">当前目标</span><span className="crumb-pill"><SceneIcon size={15} />{currentScene.vertical}</span><span className="crumb-slash">/</span><span className="crumb-text">{currentScene.intent}</span></div>
           <div className="topbar-right">
-            <span className="role-pill"><span className="sr-only">当前身份：</span><span className="role-avatar" aria-hidden="true"><UserRound size={13} /></span>行业运营 <span className="role-separator">·</span> {activePage === 'reuse' ? '跨场景复用' : '护肤'}</span>
-            <span className="topbar-divider" />
-            <span className="version-label"><span className="version-dot" />本地演示 · 草稿</span>
+            <label className="role-pill"><span className="sr-only">当前身份</span><span className="role-avatar" aria-hidden="true"><UserRound size={13} /></span><select className="role-select" value={role} onChange={(event) => setRole(event.target.value as DemoRole)} title="切换演示身份（商业化身份用于演示护栏冲突）">{(Object.keys(ROLE_LABELS) as DemoRole[]).map((id) => <option key={id} value={id}>{ROLE_LABELS[id]}</option>)}</select></label>
             <button type="button" className="icon-button reset-button" onClick={resetDemo} title="重置演示状态" aria-label="重置演示状态"><RotateCcw size={16} /><span>重置演示</span></button>
           </div>
         </header>
 
         <main className="workspace">
           <div className="page-heading">
-            <div><div className="eyebrow"><span>AI 搜答案策略共建平台</span><span className="eyebrow-divider">/</span><span>演示工作区</span></div><h1>{copy.title}</h1><p>{copy.subtitle}</p></div>
-            <div className="heading-badges"><span className="badge badge-neutral"><FlaskConical size={14} />概念原型</span><span className="badge badge-outline"><LockKeyhole size={13} />仅本地演示</span></div>
+            <div><div className="eyebrow"><span>AI 搜答案策略共建平台</span><span className="eyebrow-divider">/</span><span>演示工作区</span></div><h1 id="workspace-page-title">{copy.title}</h1><p>{copy.subtitle}</p></div>
           </div>
 
           <section className="journey-card" aria-label="演示步骤">
-            <div className="journey-topline"><div><span className="section-kicker">DEMO FLOW</span><span className="journey-title">四步看清策略改动的影响</span></div><span className="journey-time"><Clock3 size={14} />建议演示 4.5 分钟</span></div>
+            <div className="journey-topline"><div><span className="journey-title">演示主线 · 三步看清策略改动的影响</span></div><span className="journey-time"><Clock3 size={14} />建议演示 4.5 分钟</span></div>
             <div className="step-track">
               {steps.map((step, index) => {
-                const isCurrent = flowStep === step.flowStep
-                const isPast = flowStep > step.flowStep
-                return <button type="button" key={step.number} className={`step-item ${isCurrent ? 'is-current' : ''} ${isPast ? 'is-past' : ''}`} onClick={() => { navigate(step.page); setFlowStep(step.flowStep) }} aria-current={isCurrent ? 'step' : undefined}><span className="step-number">{isPast ? <Check size={14} /> : step.number}</span><span className="step-name">{step.title}</span>{index < steps.length - 1 && <span className={`step-connector ${isPast ? 'is-past' : ''}`} aria-hidden="true" />}</button>
+                const isCurrent = activePage === step.page
+                const { done, status } = stepProgress[step.page]
+                return <button type="button" key={step.number} className={`step-item ${isCurrent ? 'is-current' : ''} ${done ? 'is-past' : ''}`} onClick={() => navigate(step.page)} aria-current={isCurrent ? 'step' : undefined}><span className="step-number">{done && !isCurrent ? <Check size={14} /> : step.number}</span><span className="step-text"><span className="step-name">{step.title}</span><span className="step-status">{status}</span></span>{index < steps.length - 1 && <span className={`step-connector ${done ? 'is-past' : ''}`} aria-hidden="true" />}</button>
               })}
             </div>
           </section>
@@ -126,7 +145,7 @@ function App() {
           {activePage === 'coverage' && <CoveragePage />}
           {activePage === 'reuse' && <ReuseWizard />}
 
-          <footer className="workspace-footer"><span>边界说明：本地规则模拟，不连接真实模型、后端或线上策略。</span><span>策略共建台 <span className="footer-separator">·</span> 演示草稿</span></footer>
+          <footer className="workspace-footer"><span>作者、帖子、组织与规则均为虚构 mock 数据；结果由本地规则模拟计算，不连接真实模型、后端或线上策略。</span></footer>
         </main>
       </div>
     </div>
