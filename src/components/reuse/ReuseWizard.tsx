@@ -7,6 +7,7 @@ import { useDemoStore, type ReuseWizardStep } from '../../store'
 import type { AnswerPoint, Query, RenderedAnswer, ReuseGroup, ReuseReport, StrategyConfig } from '../../types'
 import { Sprout } from 'lucide-react'
 import { EvidenceDrawer } from '../strategy/EvidenceDrawer'
+import { DiandianPhone } from '../answer-card/DiandianPhone'
 import './reuse.css'
 
 const WIZARD_STEPS: { id: ReuseWizardStep; title: string }[] = [
@@ -143,7 +144,7 @@ function ReuseWizard() {
                 </ReuseColumn>
               </div>
 
-              {usageAnswer && <UsageAnswerPreview answer={usageAnswer} onOpenSource={setSourcePoint} />}
+              {usageAnswer && <UsageAnswerPreview answer={usageAnswer} config={targetConfig} onOpenSource={setSourcePoint} />}
               <div className="reuse-report-footer">
                 <button type="button" className="reuse-button reuse-button-quiet" onClick={() => setReuseWizardStep(1)}><ArrowLeft size={14} />重新选择来源模板</button>
                 <button type="button" className="reuse-button reuse-button-primary reuse-create-button" onClick={() => setCreateOpen(true)}><Sparkles size={16} />一键生成新场景</button>
@@ -210,35 +211,31 @@ function CreateSceneDialog({ target, onClose }: { target: string; onClose: () =>
   )
 }
 
-function UsageAnswerPreview({ answer, onOpenSource }: { answer: RenderedAnswer; onOpenSource: (point: AnswerPoint) => void }) {
-  const conclusion = answer.sections.find((section) => section.componentId === 'conclusion')
-  const steps = answer.sections.find((section) => section.componentId === 'step-list')
-  const pitfalls = answer.sections.find((section) => section.componentId === 'pitfall-card')
-
+function UsageAnswerPreview({ answer, config, onOpenSource }: { answer: RenderedAnswer; config: StrategyConfig; onOpenSource: (point: AnswerPoint) => void }) {
+  const [showSlots, setShowSlots] = useState(true)
   return <section className="reuse-preview-panel panel" aria-labelledby="reuse-answer-title">
-    <div className="reuse-preview-heading"><div><h3 id="reuse-answer-title">新场景答案预览</h3><p>{USAGE_QUERY.text} · 点击要点可查看来源</p></div><span className="reuse-existing-badge"><Check size={13} />答案主体均为已有组件</span></div>
+    <div className="reuse-preview-heading"><div><h3 id="reuse-answer-title">新场景答案预览</h3><p>{USAGE_QUERY.text} · 模板「{SKINCARE_TEMPLATE.name}」复用到「护肤 · 怎么使用」· 点击要点可查看来源</p></div><span className="reuse-existing-badge"><Check size={13} />答案主体均为已有组件</span></div>
     <div className="reuse-preview-layout">
-      <div className="reuse-phone-wrap"><div className="reuse-phone-frame"><div className="reuse-phone-top"><span className="reuse-phone-camera" /><span>小红书 AI 搜</span></div><div className="reuse-phone-content">
-        <h4 className="reuse-phone-query">{USAGE_QUERY.text}</h4><div className="reuse-phone-state"><span />与来源场景共用帖子池</div>
-        {conclusion && <section className="reuse-answer-section is-conclusion"><div className="reuse-section-title"><span className="reuse-section-dot" /><strong>{conclusion.title}</strong><span>已有</span></div>{conclusion.points.map((point) => <AnswerAction key={point.id} point={point} onClick={() => onOpenSource(point)} />)}</section>}
-        {steps && <section className="reuse-answer-section is-steps"><div className="reuse-section-title"><span className="reuse-section-dot" /><strong>{steps.title}</strong><span>已有</span></div>
-          <div className="reuse-utensil-group"><ol>{steps.points.map((point) => <li key={point.id}><AnswerAction point={point} onClick={() => onOpenSource(point)} /></li>)}</ol></div>
-        </section>}
-        {pitfalls && pitfalls.points.length > 0 && <section className="reuse-answer-section is-pitfall"><div className="reuse-section-title"><span className="reuse-section-dot" /><strong>{pitfalls.title}</strong><span>已有</span></div>{pitfalls.points.map((point) => <AnswerAction key={point.id} point={point} onClick={() => onOpenSource(point)} />)}</section>}
-        <div className="reuse-source-footer"><strong>引用来源</strong><span>{answer.footer.noteCount} 笔记 · {answer.footer.commentCount} 评论</span></div>
-      </div></div></div>
+      <div className="reuse-phone-wrap">
+        <button type="button" className={`reuse-slot-toggle ${showSlots ? 'is-on' : ''}`} aria-pressed={showSlots} onClick={() => setShowSlots((on) => !on)}>{showSlots ? '隐藏槽位标注' : '显示槽位标注'}</button>
+        <DiandianPhone
+          answer={answer}
+          query={USAGE_QUERY}
+          config={config}
+          posts={SKINCARE_POSTS}
+          labelSponsored={config.evidence.labelSponsored}
+          stateLabel="复用模板 · 与来源场景共用帖子池"
+          showSlots={showSlots}
+          onOpenSource={onOpenSource}
+        />
+      </div>
       <aside className="reuse-preview-aside">
-        <div className="reuse-aside-card"><h4>答案组件构成</h4><ul>{answer.sections.map((section) => <li key={section.componentId}><span className="reuse-status-dot" /><span>{section.title}</span><em>已有</em></li>)}</ul></div>
+        <div className="reuse-aside-card"><h4>答案组件构成</h4><ul>{answer.sections.map((section) => <li key={section.componentId}><span className="reuse-status-dot" /><span>{section.title}</span><em>已有</em></li>)}<li><span className="reuse-status-dot" /><span>来源底栏与溯源</span><em>已有 · 锁定</em></li></ul></div>
         <div className="reuse-planned-preview"><div className="reuse-planned-preview-heading"><span className="reuse-dash-icon" /><strong>用量与等待时长参数条</strong><em>待研发</em></div><div className="reuse-planned-placeholder">尚未纳入答案结构</div></div>
-        <div className="reuse-target-note"><Sprout size={16} /><span><strong>配置调整说明：</strong>用法类问题关闭按肤质分组，避免“等待成膜”等步骤被拆分。</span></div>
+        <div className="reuse-target-note"><Sprout size={16} /><span><strong>配置调整说明：</strong>用法类问题关闭按肤质分组，避免“等待成膜”等步骤被拆分。卡片里「按肤质分组」槽位因此显示为已关闭。</span></div>
       </aside>
     </div>
   </section>
-}
-
-function AnswerAction({ point, onClick }: { point: AnswerPoint; onClick: () => void }) {
-  const hasSponsoredSource = point.evidenceIds.some((id) => SKINCARE_POSTS.find((post) => post.id === id)?.sponsored)
-  return <button type="button" className="reuse-answer-point" onClick={onClick}><span>{point.text}</span><small><span>{point.evidenceIds.length} 条引用</span>{hasSponsoredSource && <em>合作已标注</em>}<b>查看来源</b></small></button>
 }
 
 export { ReuseWizard }

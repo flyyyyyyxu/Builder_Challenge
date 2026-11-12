@@ -1,0 +1,97 @@
+/* 点点 conversation card inside a phone frame. Shared by every answer preview on the platform. */
+.dd-phone { width: min(100%, 348px); margin: 0 auto; padding: 8px; background: #1d2124; border-radius: 38px; box-shadow: 0 6px 18px rgba(20,30,30,.16); }
+.dd-screen { display: flex; flex-direction: column; height: 660px; overflow: hidden; color: #222428; background: #f5f6f8; border-radius: 31px; font-family: -apple-system, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif; }
+
+.dd-status { display: flex; flex: 0 0 auto; align-items: center; justify-content: space-between; height: 30px; padding: 5px 22px 0; font-size: 11px; font-weight: 600; }
+.dd-island { width: 76px; height: 20px; background: #1d2124; border-radius: 11px; }
+.dd-sig { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; }
+.dd-bat { position: relative; width: 18px; height: 9px; border: 1.2px solid #222; border-radius: 3px; }
+.dd-bat::after { position: absolute; inset: 1.3px 4px 1.3px 1.3px; background: #222; border-radius: 1px; content: ""; }
+
+.dd-nav { display: flex; flex: 0 0 auto; align-items: center; gap: 7px; height: 40px; padding: 0 10px; }
+.dd-nav strong { font-size: 15px; font-weight: 600; }
+.dd-orb { width: 17px; height: 17px; background: radial-gradient(circle at 35% 35%, #c9fff0, #5fd8c0 55%, #49b7e6); border-radius: 50%; }
+.dd-sim { padding: 1px 5px; color: #7a8086; background: #e8eaed; border-radius: 4px; font-size: 9.5px; }
+.dd-more { margin-left: auto; color: #333; }
+
+.dd-chat { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 10px 12px; scrollbar-width: none; }
+.dd-chat::-webkit-scrollbar { display: none; }
+.dd-user { width: fit-content; max-width: 80%; margin: 4px 0 10px auto; padding: 8px 12px; background: #e8eaee; border-radius: 16px 16px 4px 16px; font-size: 13px; line-height: 1.45; }
+
+/* Tool layer: preview state, not part of the 点点 UI. */
+.dd-state { display: flex; align-items: center; gap: 5px; width: fit-content; max-width: 100%; margin: 0 auto 9px; padding: 3px 9px; color: #65716d; background: rgba(255,255,255,.9); border: 1px solid #e3e7e6; border-radius: 999px; font-size: 10px; }
+.dd-state i { width: 6px; height: 6px; background: #a2aca8; border-radius: 50%; }
+.dd-state.is-draft { color: #3f6f62; background: rgba(233,248,242,.95); border-color: #cfeadf; }
+.dd-state.is-draft i { background: #35b48a; }
+
+.dd-answer { padding: 12px 12px 8px; background: #fff; border-radius: 14px; font-size: 13px; line-height: 1.7; }
+
+.dd-refs { display: flex; align-items: center; gap: 5px; color: #8a8f98; font-size: 11px; white-space: nowrap; }
+.dd-avatars { display: inline-flex; }
+.dd-avatars i { width: 14px; height: 14px; margin-left: -4px; border: 1.5px solid #fff; border-radius: 50%; }
+.dd-avatars i:nth-child(1) { margin-left: 0; background: #ffd9c7; }
+.dd-avatars i:nth-child(2) { background: #cfe8ff; }
+.dd-avatars i:nth-child(3) { background: #d8f3e6; }
+.dd-date { margin-left: auto; color: #a7acb3; font-size: 10px; }
+
+.dd-empty { display: flex; align-items: flex-start; gap: 6px; margin-top: 10px; padding: 9px; color: #7b6e55; background: #fbf7ee; border-radius: 8px; font-size: 11.5px; line-height: 1.55; }
+
+/* Slots */
+.dd-slot { position: relative; margin-top: 12px; border-radius: 7px; transition: box-shadow .2s ease, background .2s ease; }
+.dd-slot.is-source-footer { margin-top: 0; }
+.dd-slot.is-annotated { padding: 4px 5px 5px; outline: 1px dashed rgba(255,36,66,.4); outline-offset: 2px; }
+.dd-slot.is-focused { background: #fff6f7; box-shadow: 0 0 0 2px rgba(255,36,66,.55); }
+.dd-slot-tag { display: inline-flex; align-items: center; gap: 4px; margin: 0 0 4px; padding: 1px 6px 1px 2px; color: #c4253b; background: #fff0f2; border: 0; border-radius: 999px; font: inherit; font-size: 9.5px; font-weight: 600; line-height: 16px; }
+button.dd-slot-tag { cursor: pointer; }
+button.dd-slot-tag:hover { background: #ffe1e6; }
+.dd-slot-tag em { color: #b56a75; font-style: normal; font-weight: 500; }
+.dd-slot-num { display: inline-grid; place-items: center; width: 14px; height: 14px; color: #fff; background: #ff2442; border-radius: 50%; font-size: 8.5px; }
+.dd-slot-ghost { padding: 7px 9px; color: #9aa0a8; background: #fafbfc; border: 1px dashed #dfe2e6; border-radius: 8px; font-size: 11px; }
+
+/* 点点 typography */
+.dd-headline { display: grid; gap: 2px; }
+.dd-sec-title { margin: 0 0 3px; font-size: 14px; font-weight: 700; }
+.dd-group { margin-top: 5px; }
+.dd-group-head { display: flex; align-items: center; justify-content: space-between; }
+.dd-group-name { color: #2a5db0; font-size: 13.5px; font-weight: 700; }
+.dd-group-pill { padding: 0 6px; color: #1f8a6a; background: #e9f8f2; border-radius: 4px; font-size: 10px; line-height: 1.7; }
+.dd-dots, .dd-steps { margin: 0; padding: 0; list-style: none; }
+.dd-dots li { position: relative; padding-left: 12px; }
+.dd-dots li::before { position: absolute; top: .78em; left: 2px; width: 4px; height: 4px; background: #c3c7cc; border-radius: 50%; content: ""; }
+.dd-steps { counter-reset: dd-step; }
+.dd-steps li { position: relative; margin-top: 3px; padding-left: 17px; counter-increment: dd-step; }
+.dd-steps li::before { position: absolute; top: 2px; left: 0; font-weight: 700; content: counter(dd-step) "."; }
+.dd-steps li.is-ghost::before { color: #b3b8be; }
+
+.dd-pt { display: block; width: 100%; padding: 1px 2px; color: inherit; text-align: left; background: transparent; border: 0; border-radius: 4px; cursor: pointer; font: inherit; line-height: inherit; transition: background .15s ease; }
+.dd-pt:hover { background: #f3f5f7; }
+.dd-pt:focus-visible { outline: 2px solid #49b7e6; outline-offset: 1px; }
+.dd-pt b { font-weight: 700; }
+.dd-pt.is-headline { font-size: 15.5px; font-weight: 700; line-height: 1.55; }
+.dd-pt.is-headline:not(.is-ghost) .dd-pt-text { background: linear-gradient(transparent 54%, #c8f0e2 54%); -webkit-box-decoration-break: clone; box-decoration-break: clone; }
+.dd-cite { display: inline-flex; align-items: center; gap: 2px; height: 14px; margin-left: 3px; padding: 0 4px; color: #7d8590; background: #f1f2f4; border-radius: 7px; font-size: 9.5px; font-weight: 500; line-height: 14px; vertical-align: 1px; }
+.dd-spon, .dd-diff { display: inline-block; height: 14px; margin-left: 3px; padding: 0 4px; border-radius: 3px; font-size: 9.5px; font-weight: 500; line-height: 14px; vertical-align: 1px; }
+.dd-spon { color: #8b7a5a; background: #f6efe1; }
+.dd-spon.is-unlabeled { color: #b4492f; background: #fdece7; }
+.dd-diff.is-added { color: #1f8a6a; background: #d6f2e7; }
+.dd-diff.is-removed { color: #c27a45; background: #fbeee3; }
+.dd-pt.is-added { background: #e9f8f2; box-shadow: inset 2px 0 0 #3fb88f; }
+.dd-pt.is-removed { box-shadow: inset 2px 0 0 #d9a476; }
+.dd-pt.is-ghost { color: #a7acb3; box-shadow: none; text-decoration: line-through; text-decoration-color: #c27a45; }
+.dd-pt.is-ghost .dd-cite, .dd-pt.is-ghost .dd-spon, .dd-pt.is-ghost .dd-diff { text-decoration: none; }
+.dd-pt.is-pulsing { animation: dd-pulse 1.75s ease-out; }
+
+.dd-tip { padding: 9px 10px 8px; background: #fdf6e8; border-radius: 11px; }
+.dd-tip .dd-sec-title { color: #6b5530; font-size: 13.5px; }
+.dd-tip .dd-dots li::before { background: #d9c7a0; }
+
+.dd-actions { display: flex; align-items: center; gap: 16px; margin-top: 10px; padding-top: 4px; color: #9aa0a8; }
+.dd-actions span { flex: 1; }
+
+.dd-composer { display: flex; flex: 0 0 auto; align-items: center; gap: 8px; margin: 0 8px 4px; padding: 8px 11px; color: #444; background: #fff; border-radius: 20px; font-size: 12px; }
+.dd-composer span { flex: 1; color: #b1b5bb; }
+.dd-ai-note { flex: 0 0 auto; padding-bottom: 10px; color: #b8bcc2; font-size: 9px; text-align: center; }
+
+@keyframes dd-pulse { 0% { background-color: #d6f2e7; box-shadow: 0 0 0 3px rgba(63,184,143,.22); } 100% { box-shadow: 0 0 0 0 rgba(63,184,143,0); } }
+@media (prefers-reduced-motion: reduce) { .dd-pt.is-pulsing { animation: none; } .dd-slot { transition: none; } }
+@media (max-width: 560px) { .dd-phone { width: 100%; } .dd-screen { height: 600px; } }

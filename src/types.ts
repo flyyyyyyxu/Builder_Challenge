@@ -167,6 +167,8 @@ export interface PointDefinition {
   kind: 'shared' | 'persona' | 'step' | 'pitfall' | 'cooking'
   persona?: string
   order: number
+  /** Short bold lead shown before the text in the 点点 card, e.g. “质地”. */
+  lead?: string
 }
 
 export interface ComponentDef {
@@ -193,6 +195,7 @@ export interface AnswerPoint {
   componentId: string
   evidenceIds: string[]
   persona?: string
+  lead?: string
   change: ChangeKind
   trace: RuleTrace[]
 }

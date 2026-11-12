@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { BASELINE_CONFIG } from './data/strategy-config'
 import type { AnswerPoint, CoverageRun, ReuseReport, Role, StrategyConfig } from './types'
+import type { SlotId } from './components/answer-card/slots'
 
 export type PageId = 'home' | 'template' | 'strategy' | 'coverage' | 'reuse' | 'feedback'
 export type PreviewVersion = 'before' | 'after'
@@ -52,6 +53,8 @@ type DemoStore = {
   launchedConfigVersion: string | null
   previewVersion: PreviewVersion
   sourcePoint: AnswerPoint | null
+  /** Card slot lit up in the preview while its strategy item is hovered or focused in the editor. */
+  focusedSlot: SlotId | null
   coverageRun: CoverageRun | null
   selectedSampleId: string | null
   reuseWizardStep: ReuseWizardStep
@@ -70,6 +73,7 @@ type DemoStore = {
   setPreviewVersion: (version: PreviewVersion) => void
   openSource: (point: AnswerPoint) => void
   closeSource: () => void
+  setFocusedSlot: (slot: SlotId | null) => void
   setCoverageRun: (run: CoverageRun) => void
   setSelectedSampleId: (sampleId: string | null) => void
   setReuseWizardStep: (step: ReuseWizardStep) => void
@@ -92,6 +96,7 @@ export const useDemoStore = create<DemoStore>((set) => ({
   launchedConfigVersion: null,
   previewVersion: 'after',
   sourcePoint: null,
+  focusedSlot: null,
   coverageRun: null,
   selectedSampleId: null,
   reuseWizardStep: 1,
@@ -110,6 +115,7 @@ export const useDemoStore = create<DemoStore>((set) => ({
   setPreviewVersion: (previewVersion) => set({ previewVersion }),
   openSource: (sourcePoint) => set({ sourcePoint }),
   closeSource: () => set({ sourcePoint: null }),
+  setFocusedSlot: (focusedSlot) => set({ focusedSlot }),
   setCoverageRun: (coverageRun) => set({ coverageRun }),
   setSelectedSampleId: (selectedSampleId) => set({ selectedSampleId }),
   setReuseWizardStep: (reuseWizardStep) => set({ reuseWizardStep }),
@@ -129,6 +135,7 @@ export const useDemoStore = create<DemoStore>((set) => ({
     launchedConfigVersion: null,
     previewVersion: 'after',
     sourcePoint: null,
+    focusedSlot: null,
     coverageRun: null,
     selectedSampleId: null,
     reuseWizardStep: 1,

@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>点点卡片样稿</title>
+<style>
+  :root {
+    --page: #eef1f0;
+    --app-bg: #f5f6f8;
+    --card: #ffffff;
+    --ink: #222428;
+    --ink-2: #4a4f57;
+    --ink-3: #8a8f98;
+    --line: #eceef1;
+    --bubble: #e9ebef;
+    --mint: #c8f0e2;
+    --mint-ink: #1f8a6a;
+    --mint-bg: #e9f8f2;
+    --entity: #2a5db0;
+    --tip-bg: #fdf6e8;
+    --tip-ink: #6b5530;
+    --removed: #c27a45;
+    --pin: #ff2442;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--page);
+    color: var(--ink);
+    font-family: -apple-system, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .page { max-width: 1120px; margin: 0 auto; padding: 28px 16px 48px; }
+  .page-head { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+  .page-head h1 { margin: 0; font-size: 20px; font-weight: 700; }
+  .page-head p { margin: 6px 0 0; color: #5d6669; font-size: 13px; line-height: 1.6; max-width: 640px; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; padding: 7px 12px; background: #fff; border: 1px solid #dfe4e3; border-radius: 999px; font-size: 12px; color: #3b4447; cursor: pointer; user-select: none; }
+  .toggle input { accent-color: var(--pin); }
+
+  .stage { display: flex; flex-wrap: wrap; justify-content: center; gap: 36px; }
+  .col { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .col-label { font-size: 12px; color: #6a7376; }
+
+  /* ---------- phone chrome ---------- */
+  .phone { position: relative; width: 360px; max-width: 100%; height: 760px; padding: 10px; background: #1d2124; border-radius: 44px; box-shadow: 0 10px 30px rgba(20,30,30,.18); }
+  .screen { position: relative; display: flex; flex-direction: column; height: 100%; overflow: hidden; background: var(--app-bg); border-radius: 35px; }
+  .status { display: flex; justify-content: space-between; align-items: center; height: 34px; padding: 6px 26px 0; font-size: 12px; font-weight: 600; }
+  .status .island { width: 86px; height: 22px; background: #1d2124; border-radius: 12px; }
+  .status .sig { display: flex; gap: 4px; align-items: center; }
+  .status .bat { width: 20px; height: 10px; border: 1.3px solid #222; border-radius: 3px; position: relative; }
+  .status .bat::after { content: ""; position: absolute; inset: 1.5px 5px 1.5px 1.5px; background: #222; border-radius: 1px; }
+  .nav { display: flex; align-items: center; gap: 10px; height: 44px; padding: 0 14px; }
+  .nav .back { width: 10px; height: 10px; border-left: 2px solid #222; border-bottom: 2px solid #222; transform: rotate(45deg); margin-left: 4px; }
+  .nav .orb { width: 18px; height: 18px; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #c9fff0, #5fd8c0 55%, #49b7e6); }
+  .nav .name { font-size: 16px; font-weight: 600; }
+  .nav .sim { padding: 2px 6px; color: #7a8086; background: #e8eaed; border-radius: 4px; font-size: 10px; }
+  .nav .more { margin-left: auto; letter-spacing: 2px; font-weight: 700; color: #333; }
+
+  .chat { flex: 1; overflow-y: auto; padding: 6px 12px 12px; scrollbar-width: none; }
+  .chat::-webkit-scrollbar { display: none; }
+  .user-bubble { margin: 6px 0 12px auto; width: fit-content; max-width: 78%; padding: 10px 14px; background: var(--bubble); border-radius: 18px 18px 4px 18px; font-size: 14px; line-height: 1.45; }
+
+  /* draft / preview state — tool overlay, not part of 点点 UI */
+  .state { display: flex; align-items: center; gap: 6px; width: fit-content; margin: 0 auto 10px; padding: 4px 10px; color: #3f6f62; background: rgba(233,248,242,.95); border: 1px solid #cfeadf; border-radius: 999px; font-size: 11px; }
+  .state i { width: 6px; height: 6px; background: #35b48a; border-radius: 50%; }
+
+  /* ---------- 点点 answer card ---------- */
+  .answer { position: relative; padding: 14px 14px 10px; background: var(--card); border-radius: 16px; font-size: 14px; line-height: 1.7; color: var(--ink); }
+  .refs { display: flex; align-items: center; gap: 6px; white-space: nowrap; margin-bottom: 10px; color: var(--ink-3); font-size: 12px; cursor: pointer; }
+  .refs .avatars { display: inline-flex; }
+  .refs .avatars span { width: 16px; height: 16px; margin-left: -5px; border: 1.5px solid #fff; border-radius: 50%; }
+  .refs .avatars span:first-child { margin-left: 0; background: #ffd9c7; }
+  .refs .avatars span:nth-child(2) { background: #cfe8ff; }
+  .refs .avatars span:nth-child(3) { background: #d8f3e6; }
+  .refs .chev { width: 6px; height: 6px; border-right: 1.3px solid var(--ink-3); border-top: 1.3px solid var(--ink-3); transform: rotate(45deg); }
+  .refs .date { margin-left: auto; font-size: 11px; color: #a7acb3; }
+
+  .headline { display: inline; font-size: 17px; font-weight: 700; line-height: 1.55; background: linear-gradient(transparent 52%, var(--mint) 52%); }
+  .lead { margin: 8px 0 0; color: var(--ink-2); }
+
+  .sec { margin-top: 14px; }
+  .sec-title { display: flex; align-items: center; gap: 6px; margin: 0 0 6px; font-size: 15px; font-weight: 700; }
+
+  .group { margin-top: 8px; }
+  .group-head { display: flex; align-items: center; justify-content: space-between; }
+  .group-name { color: var(--entity); font-weight: 700; font-size: 14.5px; }
+  .group-pill { padding: 1px 7px; color: var(--mint-ink); background: var(--mint-bg); border-radius: 4px; font-size: 11px; line-height: 1.7; }
+
+  ul.dots, ol.steps { margin: 2px 0 0; padding: 0; list-style: none; }
+  ul.dots li { position: relative; padding-left: 14px; }
+  ul.dots li::before { content: ""; position: absolute; left: 2px; top: .72em; width: 5px; height: 5px; background: #c3c7cc; border-radius: 50%; }
+  ol.steps { counter-reset: s; }
+  ol.steps li { position: relative; padding-left: 20px; counter-increment: s; margin-top: 4px; }
+  ol.steps li::before { content: counter(s) "."; position: absolute; left: 0; top: 0; font-weight: 700; }
+
+  /* clickable point: whole line opens the existing evidence drawer */
+  .pt { cursor: pointer; border-radius: 4px; transition: background .15s; }
+  .pt:hover { background: #f4f6f8; }
+  .pt b { font-weight: 700; }
+  .cite { display: inline-flex; align-items: center; gap: 2px; margin-left: 3px; padding: 0 4px; height: 15px; vertical-align: 2px; color: #7d8590; background: #f1f2f4; border-radius: 8px; font-size: 10px; line-height: 15px; font-weight: 500; }
+  .cite svg { width: 9px; height: 9px; }
+  .spon { display: inline-block; margin-left: 3px; padding: 0 4px; height: 15px; vertical-align: 2px; color: #8b7a5a; background: #f6efe1; border-radius: 3px; font-size: 10px; line-height: 15px; }
+  .spon.unlabeled { color: #b4492f; background: #fdece7; }
+
+  /* diff marks */
+  .pt.is-added { background: var(--mint-bg); box-shadow: inset 2px 0 0 #3fb88f; }
+  .pt.is-removed { color: #a7acb3; text-decoration: line-through; text-decoration-color: var(--removed); }
+  .pt.is-removed::before { color: #a7acb3 !important; }
+  .diff-tag { display: inline-block; margin-left: 4px; padding: 0 4px; height: 15px; vertical-align: 2px; border-radius: 3px; font-size: 10px; line-height: 15px; text-decoration: none; }
+  .diff-tag.add { color: #1f8a6a; background: #d6f2e7; }
+  .diff-tag.rm { color: var(--removed); background: #fbeee3; }
+
+  .tip { margin-top: 14px; padding: 12px 12px 10px; background: var(--tip-bg); border-radius: 12px; }
+  .tip .sec-title { margin-bottom: 4px; color: var(--tip-ink); font-size: 14.5px; }
+  .tip ul.dots li::before { background: #d9c7a0; }
+
+  .actions { display: flex; align-items: center; gap: 18px; margin-top: 12px; padding-top: 8px; color: #9aa0a8; }
+  .actions span { width: 16px; height: 16px; border: 1.5px solid currentColor; border-radius: 4px; opacity: .8; }
+  .actions span.r { border-radius: 50%; }
+  .actions .sp { flex: 1; border: 0; }
+
+  .composer { display: flex; align-items: center; gap: 10px; margin: 0 10px 6px; padding: 10px 12px; background: #fff; border-radius: 22px; color: #b1b5bb; font-size: 13px; }
+  .composer .mic { width: 18px; height: 18px; border: 1.5px solid #555; border-radius: 50%; }
+  .composer .ic { width: 18px; height: 18px; border: 1.5px solid #555; border-radius: 5px; }
+  .composer .ic.r { border-radius: 50%; }
+  .composer .grow { flex: 1; }
+  .ai-note { padding-bottom: 12px; text-align: center; color: #b8bcc2; font-size: 10px; }
+
+  /* evidence sheet stub */
+  .sheet-mask { position: absolute; inset: 0; background: rgba(0,0,0,.28); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  .sheet { position: absolute; left: 0; right: 0; bottom: 0; padding: 14px 16px 22px; background: #fff; border-radius: 18px 18px 0 0; transform: translateY(100%); transition: transform .25s ease; font-size: 13px; }
+  .screen.sheet-open .sheet-mask { opacity: 1; pointer-events: auto; }
+  .screen.sheet-open .sheet { transform: none; }
+  .sheet .grab { width: 36px; height: 4px; margin: 0 auto 12px; background: #e0e2e6; border-radius: 2px; }
+  .sheet h4 { margin: 0 0 6px; font-size: 14px; }
+  .sheet p { margin: 0; color: #6b7178; line-height: 1.6; }
+
+  /* ---------- slot pins (annotation layer) ---------- */
+  .slot { position: relative; }
+  .pin { display: none; position: absolute; top: -12px; right: -12px; z-index: 2; width: 18px; height: 18px; color: #fff; background: var(--pin); border: 2px solid #fff; border-radius: 50%; font-size: 10px; font-weight: 700; line-height: 14px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,.2); }
+  body.show-pins .pin { display: block; }
+  body.show-pins .slot { outline: 1.5px dashed rgba(255,36,66,.45); outline-offset: 3px; border-radius: 6px; }
+
+  .legend { max-width: 860px; margin: 28px auto 0; background: #fff; border: 1px solid #e0e5e4; border-radius: 12px; overflow: hidden; }
+  .legend h2 { margin: 0; padding: 14px 16px 10px; font-size: 14px; }
+  .legend table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .legend th, .legend td { padding: 9px 16px; text-align: left; border-top: 1px solid #eef1f0; vertical-align: top; line-height: 1.55; }
+  .legend th { color: #6a7376; font-weight: 600; background: #fafbfb; }
+  .legend .n { display: inline-block; width: 18px; height: 18px; color: #fff; background: var(--pin); border-radius: 50%; font-size: 10px; font-weight: 700; line-height: 18px; text-align: center; }
+  .legend code { padding: 1px 5px; background: #f2f4f4; border-radius: 4px; font-size: 11.5px; }
+  .legend .muted { color: #8a9396; }
+
+  @media (max-width: 760px) {
+    .legend table, .legend tbody, .legend tr, .legend td, .legend th { display: block; }
+    .legend thead { display: none; }
+    .legend tr { border-top: 1px solid #eef1f0; padding: 6px 0; }
+    .legend td { border: 0; padding: 3px 16px; }
+  }
+</style>
+</head>
+<body class="show-pins">
+<div class="page">
+  <div class="page-head">
+    <div>
+      <h1>手机预览 · 点点对话卡片样稿</h1>
+      <p>只换皮，不加槽位：沿用现有答案卡的 5 个槽位（一句话结论 / 按肤质分组 / 步骤列表 / 踩坑提醒 / 来源底栏），按点点现有对话样式排版。点任意要点会弹出溯源（对应现在的 EvidenceDrawer）。</p>
+    </div>
+    <label class="toggle"><input type="checkbox" id="pinToggle" checked /> 显示槽位标注</label>
+  </div>
+
+  <div class="stage">
+    <!-- ================= Phone 1：选购类 ================= -->
+    <div class="col">
+      <div class="phone"><div class="screen">
+        <div class="status"><span>05:18</span><span class="island"></span><span class="sig">5G <span class="bat"></span></span></div>
+        <div class="nav"><span class="back"></span><span class="orb"></span><span class="name">点点</span><span class="sim">规则模拟</span><span class="more">···</span></div>
+
+        <div class="chat">
+          <div class="user-bubble">油皮夏天防晒怎么选</div>
+          <div class="state"><i></i>草稿 · 实时预览</div>
+
+          <div class="answer">
+            <div class="refs slot" data-src="来源底栏：笔记 6 · 评论 2 · 合作已标注 1">
+              <span class="pin">5</span>
+              参考 6 篇笔记 · 2 条评论
+              <span class="avatars"><span></span><span></span><span></span></span>
+              <span class="chev"></span>
+              <span class="date">截至 11-08</span>
+            </div>
+
+            <div class="slot">
+              <span class="pin">1</span>
+              <span class="headline pt" data-src="3 条模拟来源">先确认防护范围与使用场景是否匹配<span class="cite"><svg viewBox="0 0 10 10"><path d="M2 1h4.5L8 2.5V9H2z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>3</span></span>
+            </div>
+
+            <div class="sec slot">
+              <span class="pin">2</span>
+              <div class="sec-title">✨ 按肤质挑质地</div>
+              <div class="group">
+                <div class="group-head"><span class="group-name">油皮</span><span class="group-pill">你的肤质</span></div>
+                <ul class="dots">
+                  <li class="pt" data-src="4 条模拟来源"><b>质地：</b>可先试轻薄、成膜感较清爽的质地<span class="cite"><svg viewBox="0 0 10 10"><path d="M2 1h4.5L8 2.5V9H2z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>4</span><span class="spon">合作 1</span></li>
+                  <li class="pt is-added" data-src="2 条模拟来源"><b>场景：</b>户外或出汗时留意产品标注的防水属性<span class="cite"><svg viewBox="0 0 10 10"><path d="M2 1h4.5L8 2.5V9H2z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>2</span><span class="diff-tag add">新增</span></li>
+                </ul>
+              </div>
+              <div class="group">
+                <div class="group-head"><span class="group-name">敏感肌</span></div>
+                <ul class="dots">
+                  <li class="pt" data-src="2 条模拟来源">可留意无香型，并以个人试用感受为准<span class="cite"><svg viewBox="0 0 10 10"><path d="M2 1h4.5L8 2.5V9H2z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>2</span></li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="tip slot">
+              <span class="pin">4</span>
+              <div class="sec-title">⚠️ 踩坑提醒</div>
+              <ul class="dots">
+                <li class="pt" data-src="2 条模拟来源">有用户反馈与粉底叠加时出现<b>搓泥</b>，建议先分层试用<span class="cite"><svg viewBox="0 0 10 10"><path d="M2 1h4.5L8 2.5V9H2z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>2</span></li>
+              </ul>
+            </div>
+
+            <div class="actions"><span></span><span class="r"></span><span></span><span class="sp"></span><span></span><span class="r"></span></div>
+          </div>
+        </div>
+
+        <div class="composer"><span class="mic"></span><span class="grow">发消息或按住说话...</span><span class="ic"></span><span class="ic r"></span></div>
+        <div class="ai-note">内容由AI生成</div>
+
+        <div class="sheet-mask"></div>
+        <div class="sheet"><div class="grab"></div><h4>查看溯源</h4><p class="sheet-body"></p><p style="margin-top:8px;font-size:11px;color:#a0a5ab">这里直接复用现有的 EvidenceDrawer，不新做。</p></div>
+      </div></div>
+      <div class="col-label">选购类 · 结论 + 分组 + 踩坑 + 来源</div>
+    </div>
+
+    <!-- ================= Phone 2：用法类 ================= -->
+    <div class="col">
+      <div class="phone"><div class="screen">
+        <div class="status"><span>05:20</span><span class="island"></span><span class="sig">5G <span class="bat"></span></span></div>
+        <div class="nav"><span class="back"></span><span class="orb"></span><span class="name">点点</span><span class="sim">规则模拟</span><span class="more">···</span></div>
+
+        <div class="chat">
+          <div class="user-bubble">防晒和粉底的先后顺序</div>
+          <div class="state"><i></i>改动后 · 本次运行配置</div>
+
+          <div class="answer">
+            <div class="refs slot" data-src="来源底栏：笔记 5 · 评论 1">
+              <span class="pin">5</span>
+              参考 5 篇笔记 · 1 条评论
+              <span class="avatars"><span></span><span></span><span></span></span>
+              <span class="chev"></span>
+              <span class="date">截至 11-10</span>
+            </div>
+
+            <div class="sec slot" style="margin-top:4px">
+              <span class="pin">3</span>
+              <div class="sec-title">📝 正确步骤</div>
+              <ol class="steps">
+                <li class="pt" data-src="3 条模拟来源"><b>先防晒：</b>先完成防晒涂抹，再进入底妆步骤<span class="cite"><svg viewBox="0 0 10 10"><path d="M2 1h4.5L8 2.5V9H2z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>3</span></li>
+                <li class="pt" data-src="2 条模拟来源"><b>涂均匀：</b>将防晒均匀涂开，并按产品说明使用<span class="cite"><svg viewBox="0 0 10 10"><path d="M2 1h4.5L8 2.5V9H2z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>2</span></li>
+                <li class="pt is-removed" data-src="3 条模拟来源（本次被截掉）"><b>等成膜：</b>等待防晒成膜后再叠加底妆<span class="cite"><svg viewBox="0 0 10 10"><path d="M2 1h4.5L8 2.5V9H2z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>3</span><span class="diff-tag rm">被截掉</span></li>
+              </ol>
+            </div>
+
+            <div class="tip slot">
+              <span class="pin">4</span>
+              <div class="sec-title">⚠️ 踩坑提醒</div>
+              <ul class="dots">
+                <li class="pt" data-src="2 条模拟来源">有用户反馈与粉底叠加时出现<b>搓泥</b>，建议先分层试用<span class="cite"><svg viewBox="0 0 10 10"><path d="M2 1h4.5L8 2.5V9H2z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>2</span><span class="spon unlabeled">合作未标注 1</span></li>
+              </ul>
+            </div>
+
+            <div class="actions"><span></span><span class="r"></span><span></span><span class="sp"></span><span></span><span class="r"></span></div>
+          </div>
+        </div>
+
+        <div class="composer"><span class="mic"></span><span class="grow">发消息或按住说话...</span><span class="ic"></span><span class="ic r"></span></div>
+        <div class="ai-note">内容由AI生成</div>
+
+        <div class="sheet-mask"></div>
+        <div class="sheet"><div class="grab"></div><h4>查看溯源</h4><p class="sheet-body"></p><p style="margin-top:8px;font-size:11px;color:#a0a5ab">这里直接复用现有的 EvidenceDrawer，不新做。</p></div>
+      </div></div>
+      <div class="col-label">用法类 · 步骤 + 踩坑 + 来源（含改动标记）</div>
+    </div>
+  </div>
+
+  <div class="legend">
+    <h2>槽位对照（与现有 AnswerPreview 一一对应，没有新增）</h2>
+    <table>
+      <thead><tr><th style="width:44px">#</th><th style="width:150px">现有槽位</th><th>点点里的样子</th></tr></thead>
+      <tbody>
+        <tr><td><span class="n">1</span></td><td>一句话结论<br><code>conclusion</code></td><td>点点开头那句带薄荷色马克笔底纹的大字标题。没有结论时（如用法类）直接从下一个槽位开始。</td></tr>
+        <tr><td><span class="n">2</span></td><td>按肤质分组<br><code>persona-groups</code></td><td>「✨ 小标题」+ 蓝色分组名（对应点点里的产品名样式），右侧绿色小标签只用来标“你的肤质”，不放推荐百分比。</td></tr>
+        <tr><td><span class="n">3</span></td><td>步骤列表<br><code>step-list</code></td><td>「📝 小标题」+ 编号列表，每步前面加粗短词引导（点点的“基础护肤：…”写法）。</td></tr>
+        <tr><td><span class="n">4</span></td><td>踩坑提醒<br><code>pitfall-card</code></td><td>沿用点点底部那个米黄色总结框（“✨选购核心 / 记住这三点”）的样式。</td></tr>
+        <tr><td><span class="n">5</span></td><td>来源底栏<br><code>source-footer</code></td><td>移到卡片顶部，变成点点的「参考小红书 N 篇内容 &gt;」那一行；笔记/评论数和截至日期都放这里。</td></tr>
+        <tr><td class="muted">—</td><td class="muted">要点级信息</td><td>每条要点后面跟一个灰色小角标 <span class="cite" style="margin:0"><svg viewBox="0 0 10 10" width="9" height="9"><path d="M2 1h4.5L8 2.5V9H2z" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>3</span> 表示来源条数（对应点点实体名后的小角标）；合作内容用米色「合作 N」/ 红色「合作未标注 N」；整行可点，打开溯源。</td></tr>
+        <tr><td class="muted">—</td><td class="muted">改动标记</td><td>新增：浅绿底 + 左侧细线 +「新增」；移除：灰字删除线 +「被截掉」。草稿状态做成对话上方的小胶囊，属于工具层，不算点点 UI。</td></tr>
+        <tr><td class="muted">—</td><td class="muted">只是外壳</td><td class="muted">导航栏、操作图标行、输入框、“内容由AI生成”只为贴近真实界面，没有交互。点点原有的商品图、追问建议、缩小范围这些不加。</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+  document.getElementById('pinToggle').addEventListener('change', (e) => {
+    document.body.classList.toggle('show-pins', e.target.checked)
+  })
+  document.querySelectorAll('.screen').forEach((screen) => {
+    const body = screen.querySelector('.sheet-body')
+    screen.querySelectorAll('.pt, .refs').forEach((el) => {
+      el.addEventListener('click', () => {
+        const clone = el.cloneNode(true)
+        clone.querySelectorAll('.cite, .spon, .diff-tag, .pin').forEach((n) => n.remove())
+        const text = el.classList.contains('refs') ? '' : clone.textContent.trim()
+        body.textContent = (text ? `「${text}」\n` : '') + (el.dataset.src || '')
+        body.style.whiteSpace = 'pre-line'
+        screen.classList.add('sheet-open')
+      })
+    })
+    screen.querySelector('.sheet-mask').addEventListener('click', () => screen.classList.remove('sheet-open'))
+  })
+</script>
+</body>
+</html>

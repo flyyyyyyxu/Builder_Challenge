@@ -128,34 +128,7 @@
 .reuse-preview-heading p { margin: 0; color: #66737a; font-size: 13px; }
 .reuse-existing-badge { display: inline-flex; align-items: center; gap: 5px; padding: 6px 10px; color: #3f6c59; background: #edf5ef; border-radius: 7px; font-size: 13px; font-weight: 650; white-space: nowrap; }
 .reuse-preview-layout { display: grid; grid-template-columns: minmax(0,1.2fr) minmax(260px,.8fr); align-items: start; gap: 14px; }
-.reuse-phone-wrap { display: flex; justify-content: center; min-width: 0; padding: 14px; background: #f7f9f8; border: 1px solid #edf0ef; border-radius: 11px; }
-.reuse-phone-frame { width: min(100%,400px); padding: 7px; background: #20272a; border: 1px solid #13191b; border-radius: 26px; box-shadow: 0 4px 12px rgba(27,41,42,.11); }
-.reuse-phone-top { position: relative; display: flex; align-items: center; justify-content: center; height: 30px; color: #e8eeee; font-size: 12px; font-weight: 600; }
-.reuse-phone-camera { position: absolute; top: 3px; left: 50%; width: 44px; height: 8px; transform: translateX(-50%); background: #121718; border-radius: 9px; }
-.reuse-phone-content { max-height: 640px; overflow: auto; padding: 16px 14px; background: #fff; border-radius: 19px; scrollbar-width: thin; }
-.reuse-phone-query { margin: 0; color: #22303a; font-size: 17px; font-weight: 700; line-height: 1.4; }
-.reuse-phone-state { display: flex; align-items: center; gap: 6px; margin-top: 10px; padding: 7px 9px; color: #5f6e69; background: #f2f5f3; border-radius: 6px; font-size: 12px; }
-.reuse-phone-state > span { width: 6px; height: 6px; background: #6e9b84; border-radius: 50%; }
-.reuse-answer-section { display: grid; gap: 8px; margin-top: 12px; padding: 10px; background: #fbfcfc; border: 1px solid #e9eeeb; border-radius: 9px; }
-.reuse-answer-section.is-conclusion { background: #f5f9f6; border-color: #e3eee7; }
-.reuse-answer-section.is-pitfall { background: #fffaf2; border-color: #f1e4cf; }
-.reuse-section-title { display: flex; align-items: center; gap: 6px; }
-.reuse-section-title > strong { color: #2f3d42; font-size: 14px; font-weight: 700; }
-.reuse-section-title > span:last-child { margin-left: auto; padding: 2px 6px; color: #4f7a68; background: #edf4ef; border-radius: 4px; font-size: 11px; font-weight: 600; }
-.reuse-section-dot { width: 6px; height: 6px; background: #77a191; border-radius: 50%; }
-.reuse-answer-point { display: grid; gap: 6px; width: 100%; padding: 9px 10px; text-align: left; background: #fff; border: 1px solid #edf0ef; border-radius: 7px; cursor: pointer; }
-.reuse-answer-point:hover { border-color: #b8d2c9; box-shadow: 0 1px 4px rgba(43,92,79,.08); }
-.reuse-answer-point > span { color: #2f3d42; font-size: 13px; line-height: 1.55; }
-.reuse-answer-point > small { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; color: #84908d; font-size: 11px; }
-.reuse-answer-point > small b { margin-left: auto; color: #3f6c59; font-size: 12px; font-weight: 650; }
-.reuse-answer-point > small em { padding: 2px 5px; color: #81683e; background: #fbf4e7; border-radius: 4px; font-style: normal; }
-.reuse-utensil-group { display: grid; gap: 6px; }
-.reuse-utensil-group ol { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; counter-reset: reuse-step; }
-.reuse-utensil-group li { counter-increment: reuse-step; position: relative; padding-left: 26px; }
-.reuse-utensil-group li::before { content: counter(reuse-step); position: absolute; top: 9px; left: 0; display: grid; place-items: center; width: 19px; height: 19px; color: #3f6c59; background: #e5f0ea; border-radius: 50%; font-size: 11px; font-weight: 700; }
-.reuse-source-footer { display: flex; align-items: center; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid #e9eeec; font-size: 12px; }
-.reuse-source-footer strong { color: #3f5a50; font-weight: 650; }
-.reuse-source-footer span { color: #7c8985; }
+.reuse-phone-wrap { position: relative; display: flex; flex-direction: column; align-items: center; gap: 10px; min-width: 0; padding: 14px; background: #f7f9f8; border: 1px solid #edf0ef; border-radius: 11px; }
 .reuse-preview-aside { display: grid; gap: 12px; min-width: 0; }
 .reuse-aside-card { padding: 14px 16px; background: #fff; border: 1px solid #e9eeec; border-radius: 10px; }
 .reuse-aside-card h4 { margin: 0 0 10px; color: #26343a; font-size: 15px; font-weight: 700; }
@@ -217,5 +190,7 @@
   .reuse-report-column.is-green .reuse-report-items { row-gap: 14px; }
   .reuse-report-column.is-green .reuse-group.is-wide { order: 0; }
   .reuse-preview-aside { grid-template-columns: 1fr; }
-  .reuse-phone-frame { width: 100%; }
 }
+
+.reuse-slot-toggle { align-self: flex-end; padding: 4px 10px; color: #6b777c; background: #fff; border: 1px solid #e3e8e6; border-radius: 999px; cursor: pointer; font-size: 11px; }
+.reuse-slot-toggle.is-on { color: #c4253b; background: #fff0f2; border-color: #ffd6dc; }

@@ -156,6 +156,7 @@ export function renderAnswer(
       componentId: definition.componentId,
       evidenceIds: evidence.map((post) => post.id),
       persona: definition.persona,
+      lead: definition.lead,
       change: 'unchanged',
       trace: pointTrace,
     }

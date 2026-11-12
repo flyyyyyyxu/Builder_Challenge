@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AlertTriangle, ArrowRight, Check, FileSearch, Sparkles } from 'lucide-react'
-import type { AnswerPoint, Post, RenderedAnswer } from '../../types'
+import { ArrowRight, LayoutTemplate, Sparkles, Tags } from 'lucide-react'
+import type { AnswerPoint, Post, QueryCategory, RenderedAnswer, StrategyConfig } from '../../types'
 import type { PreviewVersion } from '../../store'
+import { DiandianPhone } from '../answer-card/DiandianPhone'
+import type { CardSlot, SlotId } from '../answer-card/slots'
 
 export type CheckStatus =
   | { kind: 'not-run' }
@@ -17,7 +19,10 @@ function checkStatusLabel(status: CheckStatus): string {
 type Props = {
   before: RenderedAnswer
   after: RenderedAnswer
-  queryText: string
+  /** Configs that produced `before` / `after`; they drive slot order and why a template slot is empty. */
+  beforeConfig: StrategyConfig
+  afterConfig: StrategyConfig
+  query: { text: string; category: QueryCategory; persona?: string }
   mode: PreviewVersion
   onModeChange: (mode: PreviewVersion) => void
   onOpenSource: (point: AnswerPoint) => void
@@ -29,6 +34,13 @@ type Props = {
   posts: Post[]
   /** Embedded (regression page): only the before/after tabs and the card, without workspace captions or CTA. */
   embedded?: boolean
+  /** Template the card is rendered from, e.g. “护肤测评 · 选购 · 草稿 v1.2”. */
+  templateLabel?: string
+  /** Slot to light up because its strategy item is being edited. */
+  focusedSlot?: SlotId | null
+  /** Clicking a slot tag jumps to the strategy items that own it. */
+  onSlotClick?: (slot: CardSlot) => void
+  defaultShowSlots?: boolean
 }
 
 export function markAnswerDiff(before: RenderedAnswer, after: RenderedAnswer) {
@@ -47,77 +59,42 @@ export function markAnswerDiff(before: RenderedAnswer, after: RenderedAnswer) {
   return { before: mark(before, afterKeys, 'before'), after: mark(after, beforeKeys, 'after') }
 }
 
-function pointRows(points: AnswerPoint[], onOpenSource: (point: AnswerPoint) => void, postsById: Map<string, Post>, labelSponsored: boolean, highlighted: Set<string>) {
-  return points.map((point) => {
-    const sponsoredCount = point.evidenceIds.filter((id) => postsById.get(id)?.sponsored).length
-    const isHighlighted = highlighted.has(point.id) && point.change !== 'unchanged'
-    return (
-      <button
-        type="button"
-        key={point.id}
-        className={`s2-answer-point ${point.change !== 'unchanged' ? `is-${point.change}` : ''} ${isHighlighted ? 'is-pulsing' : ''}`}
-        onClick={() => onOpenSource(point)}
-        aria-label={`查看引用来源：${point.text}`}
-      >
-        <span className="s2-answer-point-text">{point.text}</span>
-        <span className="s2-answer-point-footer">
-          <span><FileSearch size={12} />{point.evidenceIds.length} 条模拟来源</span>
-          {sponsoredCount > 0 && <span className={labelSponsored ? 's2-sponsored-tag' : 's2-sponsored-tag is-unlabeled'}>{labelSponsored ? `合作内容已标注 · ${sponsoredCount}` : `合作内容未标注 · ${sponsoredCount}`}</span>}
-          <span className="s2-view-source">查看溯源 <ArrowRight size={12} /></span>
-        </span>
-      </button>
-    )
-  })
-}
-
-function AnswerSection({ section, onOpenSource, postsById, labelSponsored, highlighted }: {
-  section: RenderedAnswer['sections'][number]
-  onOpenSource: (point: AnswerPoint) => void
-  postsById: Map<string, Post>
-  labelSponsored: boolean
-  highlighted: Set<string>
-}) {
-  const renderRows = (points: AnswerPoint[]) => pointRows(points, onOpenSource, postsById, labelSponsored, highlighted)
-  const groups = useMemo(() => {
-    if (section.componentId !== 'persona-groups') return []
-    const byPersona = new Map<string, AnswerPoint[]>()
-    for (const point of section.points) {
-      const label = point.persona ?? '未分组'
-      byPersona.set(label, [...(byPersona.get(label) ?? []), point])
+/** In the “after” view, points the draft dropped stay visible as struck-through ghosts at their old position. */
+export function withRemovedGhosts(after: RenderedAnswer, before: RenderedAnswer): { answer: RenderedAnswer; ghostReasons: Map<string, string> } {
+  const ghostReasons = new Map<string, string>()
+  const sections = after.sections.map((section) => ({ ...section, points: [...section.points] }))
+  for (const beforeSection of before.sections) {
+    const removed = beforeSection.points.filter((point) => point.change === 'removed')
+    if (removed.length === 0) continue
+    let target = sections.find((section) => section.componentId === beforeSection.componentId)
+    if (!target) {
+      target = { ...beforeSection, points: [] }
+      sections.push(target)
     }
-    return [...byPersona.entries()]
-  }, [section.componentId, section.points])
-
-  return (
-    <section className={`s2-answer-section is-${section.componentId}`}>
-      <div className="s2-answer-section-heading">
-        {section.componentId === 'pitfall-card' ? <AlertTriangle size={14} /> : section.componentId === 'conclusion' ? <Sparkles size={14} /> : <span className="s2-answer-section-dot" />}
-        <strong>{section.componentId === 'conclusion' ? '一句话结论' : section.title}</strong>
-        {section.status === 'existing' && <span className="s2-existing-label"><Check size={11} />已有组件</span>}
-      </div>
-      {section.componentId === 'persona-groups' ? (
-        <div className="s2-persona-groups">
-          {groups.map(([persona, points]) => (
-            <div className="s2-persona-group" key={persona}>
-              <div className="s2-persona-label">{persona}</div>
-              {renderRows(points)}
-            </div>
-          ))}
-        </div>
-      ) : section.componentId === 'step-list' ? (
-        <div className="s2-step-points">{renderRows(section.points)}</div>
-      ) : (
-        <div className="s2-point-list">{renderRows(section.points)}</div>
-      )}
-    </section>
-  )
+    for (const point of removed) {
+      const omitted = after.omittedPoints.find((entry) => entry.pointKey === point.id)
+      const filtered = after.filteredEvidence.find((entry) => point.evidenceIds.includes(entry.evidenceId))
+      ghostReasons.set(point.id, omitted?.reason ?? (filtered ? `支撑该要点的帖子被筛除：${filtered.reason}` : '改动后未进入答案。'))
+      const beforeIndex = beforeSection.points.findIndex((entry) => entry.id === point.id)
+      const anchor = beforeSection.points.slice(0, beforeIndex).reverse().find((entry) => target!.points.some((kept) => kept.id === entry.id))
+      const at = anchor ? target.points.findIndex((kept) => kept.id === anchor.id) + 1 : 0
+      target.points.splice(at, 0, point)
+    }
+  }
+  return { answer: { ...after, sections }, ghostReasons }
 }
 
-export function AnswerPreview({ before, after, queryText, mode, onModeChange, onOpenSource, onNavigateCoverage, diffSummary, isDraftModified, checkStatus, labelSponsored, posts, embedded = false }: Props) {
-  const answer = mode === 'before' ? before : after
-  const postsById = useMemo(() => new Map(posts.map((post) => [post.id, post])), [posts])
+export function AnswerPreview({
+  before, after, beforeConfig, afterConfig, query, mode, onModeChange, onOpenSource, onNavigateCoverage, diffSummary,
+  isDraftModified, checkStatus, labelSponsored, posts, embedded = false, templateLabel, focusedSlot, onSlotClick, defaultShowSlots = false,
+}: Props) {
+  const { answer, ghostReasons } = useMemo(
+    () => mode === 'before' ? { answer: before, ghostReasons: new Map<string, string>() } : withRemovedGhosts(after, before),
+    [mode, before, after],
+  )
   const changedIds = useMemo(() => new Set(answer.sections.flatMap((section) => section.points.filter((point) => point.change !== 'unchanged').map((point) => point.id))), [answer])
   const [highlighted, setHighlighted] = useState<Set<string>>(new Set())
+  const [showSlots, setShowSlots] = useState(defaultShowSlots)
 
   useEffect(() => {
     setHighlighted(changedIds)
@@ -125,54 +102,40 @@ export function AnswerPreview({ before, after, queryText, mode, onModeChange, on
     return () => window.clearTimeout(timer)
   }, [changedIds])
 
-  const hasPoints = answer.sections.some((section) => section.points.length > 0)
   const stateLabel = mode === 'before' ? '改动前 · 基线' : embedded ? '改动后 · 本次运行配置' : isDraftModified ? '草稿 · 实时预览' : '与基线一致'
 
   return (
     <div className={`s2-preview-card ${embedded ? 'is-embedded' : ''}`}>
       <div className="s2-preview-controls">
         <div className="s2-preview-version-label">{embedded ? '答案卡预览' : '预览版本'}</div>
-        <div className="s2-segmented-control" role="group" aria-label="切换改动前后预览">
-          <button type="button" aria-pressed={mode === 'before'} className={mode === 'before' ? 'is-selected' : ''} onClick={() => onModeChange('before')}>改动前</button>
-          <button type="button" aria-pressed={mode === 'after'} className={mode === 'after' ? 'is-selected' : ''} onClick={() => onModeChange('after')}>改动后</button>
-        </div>
-      </div>
-      {!embedded && diffSummary && <div className="s2-diff-summary" aria-live="polite"><span className="s2-diff-mark"><Sparkles size={13} /></span><span>{diffSummary}</span></div>}
-
-      <div className="s2-phone-frame">
-        <div className="s2-phone-top"><span className="s2-phone-camera" /><span className="s2-phone-brand">小红书 <i>AI 搜</i></span><span className="s2-phone-search" /></div>
-        <div className="s2-phone-content">
-          <div className="s2-phone-question-label">AI 搜答案 · 规则模拟</div>
-          <h3 className="s2-phone-query">{queryText}</h3>
-          <div className={`s2-phone-state ${mode === 'after' && isDraftModified ? 'is-draft' : ''}`}><span className="s2-live-dot" />{stateLabel}</div>
-          {hasPoints ? (
-            <div className="s2-answer-sections">
-              {answer.sections.map((section) => (
-                <AnswerSection
-                  key={section.componentId}
-                  section={section}
-                  onOpenSource={onOpenSource}
-                  postsById={postsById}
-                  labelSponsored={labelSponsored}
-                  highlighted={highlighted}
-                />
-              ))}
-            </div>
-          ) : (
-            <div className="s2-empty-answer"><FileSearch size={16} /><span>当前策略条件下没有足够的引用支持此答案。可调整来源条件或隐藏无来源结论。</span></div>
-          )}
-          <div className="s2-phone-source-footer">
-            <div className="s2-footer-heading"><FileSearch size={13} /><strong>来源底栏</strong></div>
-            <div className="s2-footer-counts">
-              <span>笔记 {answer.footer.noteCount}</span><span>评论 {answer.footer.commentCount}</span>
-              {answer.footer.sponsoredLabeledCount > 0 && <span>合作已标注 {answer.footer.sponsoredLabeledCount}</span>}
-            </div>
-            {answer.footer.latestDate && <div className="s2-footer-date">引用示例截至 {answer.footer.latestDate}</div>}
+        <div className="s2-preview-control-group">
+          <button type="button" className={`s2-slot-toggle ${showSlots ? 'is-on' : ''}`} aria-pressed={showSlots} onClick={() => setShowSlots((on) => !on)} title="在卡片上标出模板槽位和负责角色"><Tags size={12} />槽位</button>
+          <div className="s2-segmented-control" role="group" aria-label="切换改动前后预览">
+            <button type="button" aria-pressed={mode === 'before'} className={mode === 'before' ? 'is-selected' : ''} onClick={() => onModeChange('before')}>改动前</button>
+            <button type="button" aria-pressed={mode === 'after'} className={mode === 'after' ? 'is-selected' : ''} onClick={() => onModeChange('after')}>改动后</button>
           </div>
         </div>
       </div>
+      {templateLabel && <div className="s2-preview-template"><LayoutTemplate size={12} /><span>模板</span><strong>{templateLabel}</strong></div>}
+      {!embedded && diffSummary && <div className="s2-diff-summary" aria-live="polite"><span className="s2-diff-mark"><Sparkles size={13} /></span><span>{diffSummary}</span></div>}
 
-      <div className="s2-preview-caption"><span>点击答案中的要点，可查看引用的原帖。</span></div>
+      <DiandianPhone
+        answer={answer}
+        query={query}
+        config={mode === 'before' ? beforeConfig : afterConfig}
+        posts={posts}
+        labelSponsored={labelSponsored}
+        stateLabel={stateLabel}
+        stateTone={mode === 'after' && isDraftModified ? 'draft' : 'neutral'}
+        ghostReasons={ghostReasons}
+        highlighted={highlighted}
+        showSlots={showSlots}
+        focusedSlot={focusedSlot}
+        onOpenSource={onOpenSource}
+        onSlotClick={onSlotClick}
+      />
+
+      <div className="s2-preview-caption"><span>点击答案中的要点，可查看引用的原帖{onSlotClick ? '；打开「槽位」后点槽位名可跳到负责的策略项' : ''}。</span></div>
       {!embedded && onNavigateCoverage && checkStatus && <button type="button" className="s2-go-coverage" onClick={onNavigateCoverage}>运行回归检查 <ArrowRight size={14} /><span className={`s2-check-status is-${checkStatus.kind}${checkStatus.kind === 'current' && checkStatus.summary.regressed > 0 ? ' has-regression' : ''}`}>{checkStatusLabel(checkStatus)}</span></button>}
     </div>
   )

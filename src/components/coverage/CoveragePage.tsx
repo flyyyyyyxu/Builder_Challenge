@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ArrowLeft, ArrowRight, Check, CircleAlert, CircleCheck, ClipboardCheck, RefreshCw, X } from 'lucide-react'
 import { BASELINE_CONFIG } from '../../data/strategy-config'
-import { COMPONENTS, DEMO_AS_OF_DATE, POINT_CATALOG, REGRESSION_DEMO_CONFIG, SKINCARE_POSTS, SKINCARE_SAMPLES, STALE_REFERENCE_DAYS } from '../../data'
+import { COMPONENTS, DEMO_AS_OF_DATE, POINT_CATALOG, REGRESSION_DEMO_CONFIG, SKINCARE_POSTS, SKINCARE_SAMPLES, SKINCARE_TEMPLATE, STALE_REFERENCE_DAYS } from '../../data'
 import { getConfigVersion, runCoverageCheck } from '../../engine'
 import { useDemoStore, type PreviewVersion } from '../../store'
 import { AnswerPreview } from '../strategy/AnswerPreview'
@@ -296,7 +296,9 @@ function CoverageDetail({ sample, result, runSnapshot, currentDraft, previousSco
           <AnswerPreview
             before={result.before}
             after={result.after}
-            queryText={sample.text}
+            beforeConfig={BASELINE_CONFIG}
+            afterConfig={runSnapshot}
+            query={sample}
             mode={previewMode}
             onModeChange={setPreviewMode}
             onOpenSource={setSourcePoint}
@@ -304,6 +306,7 @@ function CoverageDetail({ sample, result, runSnapshot, currentDraft, previousSco
             labelSponsored={previewMode === 'before' ? BASELINE_CONFIG.evidence.labelSponsored : runSnapshot.evidence.labelSponsored}
             posts={SKINCARE_POSTS}
             embedded
+            templateLabel={`${SKINCARE_TEMPLATE.name} · ${previewMode === 'before' ? '基线' : `本次运行 ${run.configVersion}`}`}
           />
         </aside>
       </div>

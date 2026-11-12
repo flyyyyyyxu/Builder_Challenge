@@ -34,6 +34,7 @@ import { detectConflicts, getConfigVersion, renderAnswer } from '../../engine'
 import { DEMO_ROLES, ROLE_LABELS, ROLE_TAB_LABELS, useDemoStore, type DemoRole, type PageId, type PreviewVersion } from '../../store'
 import type { ConfigPath, ConfigValue, ContentKind, MinNoteLikes, Post, QueryCategory, RenderedAnswer, SponsoredCap, StrategyConfig } from '../../types'
 import { AnswerPreview, markAnswerDiff, type CheckStatus } from './AnswerPreview'
+import { slotForPath, type CardSlot, type SlotId } from '../answer-card/slots'
 import { EvidenceDrawer } from './EvidenceDrawer'
 import { EditStrategyDialog, EditTemplateDialog, ruleLabel } from './EditDialogs'
 import './strategy.css'
@@ -139,8 +140,9 @@ function PolicyItem({ path, config, children, stack = false, inactiveHint }: {
   inactiveHint?: string
 }) {
   const item = STRATEGY_ITEMS_BY_PATH[path]
+  const focus = useSlotFocus(slotForPath(path))
   return (
-    <section className={`s2-policy-item ${stack ? 'is-stack' : ''} ${inactiveHint ? 'is-inactive' : ''}`}>
+    <section className={`s2-policy-item ${stack ? 'is-stack' : ''} ${inactiveHint ? 'is-inactive' : ''}`} {...focus}>
       <div className="s2-policy-main">
         <div className="s2-policy-title-row">
           <h3>{item.label}</h3>
@@ -154,10 +156,20 @@ function PolicyItem({ path, config, children, stack = false, inactiveHint }: {
   )
 }
 
+/** Hovering or focusing a strategy item lights up the card slot it controls in the preview. */
+function useSlotFocus(slot: SlotId | null) {
+  const setFocusedSlot = useDemoStore((state) => state.setFocusedSlot)
+  if (!slot) return {}
+  const on = () => setFocusedSlot(slot)
+  const off = () => setFocusedSlot(null)
+  return { onMouseEnter: on, onMouseLeave: off, onFocus: on, onBlur: off }
+}
+
 /** A rule that exists in the product design but is not interactive in this demo. */
-function StaticItem({ title, description, badge, icon = <LockKeyhole size={14} /> }: { title: string; description: string; badge: string; icon?: ReactNode }) {
+function StaticItem({ title, description, badge, icon = <LockKeyhole size={14} />, slot = null }: { title: string; description: string; badge: string; icon?: ReactNode; slot?: SlotId | null }) {
+  const focus = useSlotFocus(slot)
   return (
-    <section className="s2-policy-item is-static">
+    <section className="s2-policy-item is-static" {...focus}>
       <div className="s2-policy-main">
         <div className="s2-policy-title-row"><h3>{title}</h3></div>
         <p className="s2-policy-description">{description}</p>
@@ -228,6 +240,7 @@ function TemplateHeader({ config }: { config: StrategyConfig }) {
 }
 
 function TemplateOpsSlots({ config, onChange }: { config: StrategyConfig; onChange: (next: StrategyConfig) => void }) {
+  const setFocusedSlot = useDemoStore((state) => state.setFocusedSlot)
   const patch = <K extends keyof StrategyConfig['presentation']>(key: K, value: StrategyConfig['presentation'][K]) => {
     onChange({ ...config, presentation: { ...config.presentation, [key]: value } })
   }
@@ -257,6 +270,11 @@ function TemplateOpsSlots({ config, onChange }: { config: StrategyConfig; onChan
       </PolicyItem>
       <PolicyItem path="presentation.componentOrder" config={config} stack>
         <ol className="s2-order-list" aria-label="组件顺序">
+          <li className="is-locked" onMouseEnter={() => setFocusedSlot('source-footer')} onMouseLeave={() => setFocusedSlot(null)}>
+            <span className="s2-order-number"><LockKeyhole size={11} /></span>
+            <span>来源底栏</span>
+            <span className="s2-order-off">固定在卡片顶部 · 社区治理锁定</span>
+          </li>
           {editableOrder.map((id, position) => {
             const toggle = COMPONENT_TOGGLES[id]
             const off = toggle !== undefined && !config.presentation[toggle]
@@ -265,7 +283,7 @@ function TemplateOpsSlots({ config, onChange }: { config: StrategyConfig; onChan
               return entryToggle === undefined || Boolean(config.presentation[entryToggle])
             }).indexOf(id)
             return (
-              <li key={id} className={off ? 'is-off' : ''}>
+              <li key={id} className={off ? 'is-off' : ''} onMouseEnter={() => setFocusedSlot(id as SlotId)} onMouseLeave={() => setFocusedSlot(null)}>
                 <span className="s2-order-number">{off ? '—' : String(shownIndex + 1).padStart(2, '0')}</span>
                 <span>{COMPONENT_LABELS[id]}</span>
                 {off && <span className="s2-order-off">已关闭，不在卡片中显示</span>}
@@ -277,11 +295,6 @@ function TemplateOpsSlots({ config, onChange }: { config: StrategyConfig; onChan
               </li>
             )
           })}
-          <li className="is-locked">
-            <span className="s2-order-number"><LockKeyhole size={11} /></span>
-            <span>来源底栏</span>
-            <span className="s2-order-off">固定在末尾 · 社区治理锁定</span>
-          </li>
         </ol>
       </PolicyItem>
     </>
@@ -351,8 +364,8 @@ function TemplateCommunitySlots() {
   const label = STRATEGY_ITEMS_BY_PATH['evidence.labelSponsored']
   return (
     <>
-      <StaticItem title="来源底栏与溯源" description="每张答案卡都要显示引用来源，点开可以看原帖。用户靠它判断答案可不可信，其他角色不能移除。" badge="锁定模块" />
-      <StaticItem title={label.label} description={label.explanation} badge="法规要求 · 锁定" icon={<BadgeCheck size={14} />} />
+      <StaticItem title="来源底栏与溯源" description="每张答案卡都要显示引用来源，在点点卡片顶部显示为「参考 N 篇笔记」，点开可以看原帖。用户靠它判断答案可不可信，其他角色不能移除。" badge="锁定模块" slot="source-footer" />
+      <StaticItem title={label.label} description={label.explanation} badge="法规要求 · 锁定" icon={<BadgeCheck size={14} />} slot="source-footer" />
       <StaticItem title={rule.label} description={rule.explanation} badge="底线规则" icon={<ShieldCheck size={14} />} />
       <p className="s2-tab-footnote">底线规则的修改需要走社区治理评审，演示中未开放。</p>
     </>
@@ -528,6 +541,8 @@ export function StrategyWorkspace({ stage, onNavigate }: { stage: WorkspaceStage
   const openSource = useDemoStore((state) => state.openSource)
   const closeSource = useDemoStore((state) => state.closeSource)
   const coverageRun = useDemoStore((state) => state.coverageRun)
+  const focusedSlot = useDemoStore((state) => state.focusedSlot)
+  const setFocusedSlot = useDemoStore((state) => state.setFocusedSlot)
   const draftVersion = useMemo(() => getConfigVersion(draftConfig), [draftConfig])
   const checkStatus: CheckStatus = !coverageRun
     ? { kind: 'not-run' }
@@ -567,6 +582,16 @@ export function StrategyWorkspace({ stage, onNavigate }: { stage: WorkspaceStage
     if (stage === 'filter') setRemovedFilterRules([])
   }
   const activeTemplate = TEMPLATE_LIBRARY.find((template) => template.interactive)
+  const templateChanged = changedLabels(draftConfig, 'template').length > 0
+  const templateLabel = previewVersion === 'after' && templateChanged
+    ? `${activeTemplate?.name ?? '护肤测评 · 选购'} · 草稿 ${TEMPLATE_DRAFT_VERSION}`
+    : `${activeTemplate?.name ?? '护肤测评 · 选购'} · ${TEMPLATE_PINNED_VERSION}`
+  /** Slot tag → the role tab (and step) that owns it; the reference row also answers to the step-02 filters. */
+  const openSlot = (slot: CardSlot) => {
+    setViewedRole(slot.owner)
+    setFocusedSlot(slot.id)
+    if (slot.id !== 'source-footer' && stage !== 'template') onNavigate('template')
+  }
 
   return (
     <>
@@ -606,7 +631,9 @@ export function StrategyWorkspace({ stage, onNavigate }: { stage: WorkspaceStage
           <AnswerPreview
             before={before}
             after={after}
-            queryText={MAIN_QUERY.text}
+            beforeConfig={BASELINE_CONFIG}
+            afterConfig={draftConfig}
+            query={MAIN_QUERY}
             mode={previewVersion}
             onModeChange={(mode: PreviewVersion) => setPreviewVersion(mode)}
             onOpenSource={openSource}
@@ -616,6 +643,10 @@ export function StrategyWorkspace({ stage, onNavigate }: { stage: WorkspaceStage
             checkStatus={checkStatus}
             labelSponsored={previewVersion === 'before' ? BASELINE_CONFIG.evidence.labelSponsored : draftConfig.evidence.labelSponsored}
             posts={SKINCARE_POSTS}
+            templateLabel={templateLabel}
+            focusedSlot={focusedSlot}
+            onSlotClick={openSlot}
+            defaultShowSlots={stage === 'template'}
           />
           {stage === 'filter' && <PostChanges before={filterBaseRaw} after={afterRaw} posts={SKINCARE_POSTS} />}
         </aside>
