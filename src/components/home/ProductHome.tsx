@@ -19,6 +19,7 @@ import './product-home.css'
 type ProductHomeProps = {
   onEnterDemo: () => void
   onOpenReuse: () => void
+  onOpenFeedback: () => void
 }
 
 const userPainPoints = [
@@ -81,7 +82,7 @@ const demoSteps = [
   },
 ]
 
-export function ProductHome({ onEnterDemo, onOpenReuse }: ProductHomeProps) {
+export function ProductHome({ onEnterDemo, onOpenReuse, onOpenFeedback }: ProductHomeProps) {
   return (
     <div className="product-home" id="top">
       <header className="intro-header">
@@ -89,10 +90,10 @@ export function ProductHome({ onEnterDemo, onOpenReuse }: ProductHomeProps) {
           <span className="intro-brand-mark" aria-hidden="true"><Layers3 size={19} strokeWidth={2.2} /></span>
           <span><strong>策略共建台</strong><small>AI 搜答案平台方案</small></span>
         </a>
-        <nav className="intro-nav" aria-label="产品介绍目录">
-          <a href="#problem">问题与依据</a>
-          <a href="#solution">产品方案</a>
-          <a href="#flow">演示路径</a>
+        <nav className="intro-nav" aria-label="主导航">
+          <button type="button" className="is-active" aria-current="page" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>产品介绍</button>
+          <button type="button" onClick={onEnterDemo}>策略配置</button>
+          <button type="button" onClick={onOpenFeedback}>反馈治理<span className="intro-nav-tag">开发中</span></button>
         </nav>
         <button type="button" className="intro-header-cta" onClick={onEnterDemo}>
           进入策略工作台 <ArrowUpRight size={16} />

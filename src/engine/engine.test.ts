@@ -9,6 +9,7 @@ import {
   FIXED_SCOPE_CONFIG,
   POINT_CATALOG,
   REGRESSION_DEMO_CONFIG,
+  REUSABLE_RULES,
   SKINCARE_POSTS,
   SKINCARE_SAMPLES,
   SKINCARE_TEMPLATE,
@@ -210,5 +211,17 @@ describe('reuseReport', () => {
     expect(report.denominator).toBe(report.reusedAsIs.length + report.reconfigured.length)
     expect(report.denominator).not.toBe(report.reusedAsIs.length + report.reconfigured.length + report.plannedExtensions.length)
     expect(report.reuseShare).toBe(report.reusedAsIs.length / report.denominator)
+  })
+
+  it('names reused strategies exactly as steps 01 and 02 do, grouped by step', () => {
+    const report = reuseReport(SKINCARE_TEMPLATE, USAGE_REUSE_TARGET, COMPONENTS, CAPABILITIES, REUSABLE_RULES)
+    const stepLabels = new Set(STRATEGY_ITEMS.map((item) => item.label))
+    const filterNames = report.reusedAsIs.filter((item) => item.group === '筛选策略').map((item) => item.name)
+    expect(filterNames).toContain('时效窗口')
+    expect(filterNames).toContain('合作内容入卡上限')
+    expect(filterNames).not.toContain('接入反馈评测结果')
+    for (const item of report.reusedAsIs.filter((entry) => entry.kind === 'rule' && entry.group === '卡片模板')) expect(stepLabels.has(item.name)).toBe(true)
+    expect(report.reusedAsIs.find((item) => item.id === 'conclusion')?.name).toBe('一句话结论')
+    expect(report.reconfigured.find((item) => item.key === 'presentation.groupByPersona')?.label).toBe('按肤质分组')
   })
 })

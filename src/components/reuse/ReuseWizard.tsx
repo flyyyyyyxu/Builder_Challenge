@@ -1,9 +1,10 @@
-import { useMemo, useState } from 'react'
-import { ArrowLeft, ArrowRight, BadgeCheck, Boxes, Check, FileCheck2, LockKeyhole } from 'lucide-react'
-import { COMPONENTS, CAPABILITIES, DEMO_AS_OF_DATE, POINT_CATALOG, SCENES, SKINCARE_POSTS, SKINCARE_SAMPLES, SKINCARE_TEMPLATE, USAGE_REUSE_TARGET } from '../../data'
+import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { ArrowLeft, ArrowRight, BadgeCheck, Boxes, Check, FileCheck2, LockKeyhole, Sparkles, X } from 'lucide-react'
+import { COMPONENTS, CAPABILITIES, DEMO_AS_OF_DATE, POINT_CATALOG, REUSABLE_RULES, SCENES, SKINCARE_POSTS, SKINCARE_SAMPLES, SKINCARE_TEMPLATE, USAGE_REUSE_TARGET } from '../../data'
 import { getConfigVersion, renderAnswer, reuseReport as buildReuseReport } from '../../engine'
 import { useDemoStore, type ReuseWizardStep } from '../../store'
-import type { AnswerPoint, Query, RenderedAnswer, StrategyConfig } from '../../types'
+import type { AnswerPoint, Query, RenderedAnswer, ReuseGroup, ReuseReport, StrategyConfig } from '../../types'
 import { Sprout } from 'lucide-react'
 import { EvidenceDrawer } from '../strategy/EvidenceDrawer'
 import './reuse.css'
@@ -14,19 +15,15 @@ const WIZARD_STEPS: { id: ReuseWizardStep; title: string }[] = [
   { id: 3, title: '查看复用报告' },
 ]
 
-const COMPONENT_EXPLANATIONS: Record<string, string> = {
-  conclusion: '一句话结论结构及其引用关联方式可直接带入。',
-  'step-list': '已有步骤列表组件可以直接承载新场景的步骤内容。',
-  'pitfall-card': '有来源支持的踩坑提醒结构可以直接带入。',
-  'source-footer': '引用来源计数、时间和追溯能力可以直接带入。',
-  'source-tracing': '既有引用追溯能力可继续使用，原帖真实性仍不背书。',
-  'fixed-sample-check': '检查规则能力可继续使用；用法类样例需补充标注。',
+/** Only items that carry a real caveat get a note; the rest are self-explanatory. */
+const COMPONENT_NOTES: Record<string, string> = {
+  'source-footer': '溯源不代表平台为原帖真实性背书',
 }
 
-const CHANGE_LABELS: Record<string, string> = {
-  'presentation.groupByPersona': '分组方式',
-  'presentation.componentOrder': '组件顺序',
-  sampleSet: '固定样例集',
+const REUSE_GROUPS: ReuseGroup[] = ['卡片模板', '筛选策略', '回归检查']
+
+const PLANNED_NOTES: Record<string, string> = {
+  'parameter-distribution': '把“用多少、等多久成膜”做成分布展示',
 }
 
 /** Matches the “改配置” column: usage questions are not split by skin type, components re-ordered for steps. */
@@ -58,6 +55,7 @@ function ReuseWizard() {
   const setReuseWizardStep = useDemoStore((state) => state.setReuseWizardStep)
   const setReuseReport = useDemoStore((state) => state.setReuseReport)
   const [sourcePoint, setSourcePoint] = useState<AnswerPoint | null>(null)
+  const [createOpen, setCreateOpen] = useState(false)
 
   const selectedTemplate = selectedTemplateId === SKINCARE_TEMPLATE.id ? SKINCARE_TEMPLATE : null
   const targetScene = SCENES.find((scene) => scene.id === USAGE_REUSE_TARGET.id)!
@@ -76,7 +74,7 @@ function ReuseWizard() {
 
   function generateReport() {
     if (!selectedTemplate) return
-    setReuseReport(buildReuseReport(selectedTemplate, USAGE_REUSE_TARGET, COMPONENTS, CAPABILITIES))
+    setReuseReport(buildReuseReport(selectedTemplate, USAGE_REUSE_TARGET, COMPONENTS, CAPABILITIES, REUSABLE_RULES))
   }
 
   const isReportReady = report !== null && usageAnswer !== null
@@ -116,7 +114,7 @@ function ReuseWizard() {
               <span className="reuse-query-id">样例问题 ID · {USAGE_QUERY.id}</span>
             </div>
           </div>
-          <div className="reuse-confirm-boundaries"><div><Check size={14} /><span>共用护肤帖子池、引用溯源与步骤列表能力</span></div><div><Check size={14} /><span>用法问题不按肤质分组，步骤完整呈现</span></div><div className="is-planned"><span className="reuse-dash-icon" /><span>用量与等待时长参数条仍是待研发扩展点</span></div></div>
+          <div className="reuse-confirm-boundaries"><div><Check size={14} /><span>与来源场景共用帖子池、筛选策略、步骤列表及来源底栏与溯源</span></div><div><Check size={14} /><span>用法类问题关闭按肤质分组，步骤完整呈现</span></div><div className="is-planned"><span className="reuse-dash-icon" /><span>用量与等待时长参数条仍是待研发扩展点</span></div></div>
           <div className="reuse-step-actions"><button type="button" className="reuse-button reuse-button-quiet" onClick={() => setReuseWizardStep(1)}><ArrowLeft size={14} />返回来源模板</button><span>帖子来自护肤场景的 mock 来源。</span><button type="button" className="reuse-button reuse-button-primary" onClick={confirmTarget}>确认目标场景 <ArrowRight size={15} /></button></div>
         </section>
       )}
@@ -124,35 +122,38 @@ function ReuseWizard() {
       {reuseWizardStep === 3 && selectedTemplate && (
         <section className="reuse-report-stage" aria-labelledby="reuse-report-title">
           <div className="reuse-report-toolbar panel">
-            <div><h2 id="reuse-report-title">生成复用清单与目标答案预览</h2><p>来源：{selectedTemplate.name} · {sourceVersion}　｜　目标：{targetScene.vertical} · {targetScene.intent} · “{USAGE_QUERY.text}”</p></div>
-            <div className="reuse-report-actions"><button type="button" className="reuse-button reuse-button-quiet" onClick={() => setReuseWizardStep(2)}><ArrowLeft size={14} />返回目标确认</button><button type="button" className="reuse-button reuse-button-primary" onClick={generateReport}><FileCheck2 size={15} />{report ? '重新生成复用清单' : '生成复用清单'}</button></div>
+            <div><h2 id="reuse-report-title">复用清单</h2><p>护肤 · 选购怎么选 <ArrowRight size={13} /> {targetScene.vertical} · {targetScene.intent}</p></div>
+            <div className="reuse-report-actions"><button type="button" className="reuse-button reuse-button-quiet" onClick={() => setReuseWizardStep(2)}><ArrowLeft size={14} />返回目标确认</button><button type="button" className="reuse-button reuse-button-primary" onClick={generateReport}><FileCheck2 size={15} />{report ? '重新生成' : '生成复用清单'}</button></div>
           </div>
 
           {!isReportReady || !report ? (
-            <div className="reuse-report-empty panel"><div className="reuse-report-empty-icon"><Boxes size={22} /></div><h3>尚未生成复用报告</h3><p>点击“生成复用清单”调用本地 reuseReport，报告和目标答案预览会按已选模板及固定目标计算。</p></div>
+            <div className="reuse-report-empty panel"><div className="reuse-report-empty-icon"><Boxes size={22} /></div><h3>尚未生成复用清单</h3><p>生成后将列出可直接复用、需调整配置及待研发的各项能力。</p></div>
           ) : (
             <>
               <ReuseShare report={report} />
               <div className="reuse-report-grid" aria-label="复用能力清单">
-                <ReuseColumn title="直接复用" kicker="已有能力 · 原样带走" count={report.reusedAsIs.length} tone="green">
-                  {report.reusedAsIs.map((item) => <article className="reuse-report-item" key={`${item.kind}-${item.id}`}><span className="reuse-item-status is-existing"><Check size={11} /></span><div><strong>{item.name}</strong><small>{COMPONENT_EXPLANATIONS[item.id] ?? '已有能力，不更改组件状态。'}</small><code>{item.kind} · {item.id}</code></div></article>)}
+                <ReuseColumn title="直接复用" subtitle="沿用来源场景的现有配置" count={report.reusedAsIs.length} tone="green">
+                  <ReusedGroups items={report.reusedAsIs} />
                 </ReuseColumn>
-                <ReuseColumn title="改配置" kicker="已有能力 · 调整参数" count={report.reconfigured.length} tone="amber">
-                  {report.reconfigured.map((item) => <article className="reuse-report-item" key={item.key}><span className="reuse-item-status is-reconfigured"><ArrowRight size={12} /></span><div><strong>{CHANGE_LABELS[item.key] ?? item.key}</strong><small><span className="reuse-from-value">{item.from}</span><ArrowRight size={11} /><span className="reuse-to-value">{item.to}</span></small><code>{item.key}</code></div></article>)}
+                <ReuseColumn title="改配置" subtitle="沿用已有能力，调整配置取值" count={report.reconfigured.length} tone="amber">
+                  {report.reconfigured.map((item) => <article className="reuse-report-item" key={item.key}><span className="reuse-item-status is-reconfigured"><ArrowRight size={12} /></span><div><strong>{item.label}<em className="reuse-stage-tag">{item.stage}</em></strong><small className="reuse-change"><span className="reuse-from-value">{item.from}</span><ArrowRight size={12} /><span className="reuse-to-value">{item.to}</span></small></div></article>)}
                 </ReuseColumn>
-                <ReuseColumn title="待研发扩展点" kicker="不计入复用占比" count={report.plannedExtensions.length} tone="planned">
-                  {report.plannedExtensions.map((item) => <article className="reuse-report-item is-planned" key={item.id}><span className="reuse-item-status is-planned"><span className="reuse-dash-icon" /></span><div><strong>{item.name}</strong><small>{item.reason}</small><code>planned · {item.id}</code></div></article>)}
-                  <p className="reuse-planned-footnote">虚线边框为概念占位，不属于现有答案组件，也不进入复用占比。</p>
+                <ReuseColumn title="待研发" subtitle="需研发新增组件，不计入复用占比" count={report.plannedExtensions.length} tone="planned">
+                  {report.plannedExtensions.map((item) => <article className="reuse-report-item is-planned" key={item.id}><span className="reuse-item-status is-planned"><span className="reuse-dash-icon" /></span><div><strong>{item.name}</strong><small>{PLANNED_NOTES[item.id] ?? item.reason}</small></div></article>)}
                 </ReuseColumn>
               </div>
 
               {usageAnswer && <UsageAnswerPreview answer={usageAnswer} onOpenSource={setSourcePoint} />}
-              <div className="reuse-report-footer"><span>模板版本固定于 {sourceVersion}；用法场景答案仅使用 existing 组件和可追溯 mock 来源。</span><button type="button" className="reuse-button reuse-button-quiet" onClick={() => setReuseWizardStep(1)}>重新选择来源模板</button></div>
+              <div className="reuse-report-footer">
+                <button type="button" className="reuse-button reuse-button-quiet" onClick={() => setReuseWizardStep(1)}><ArrowLeft size={14} />重新选择来源模板</button>
+                <button type="button" className="reuse-button reuse-button-primary reuse-create-button" onClick={() => setCreateOpen(true)}><Sparkles size={16} />一键生成新场景</button>
+              </div>
             </>
           )}
         </section>
       )}
 
+      {createOpen && <CreateSceneDialog target={`${targetScene.vertical} · ${targetScene.intent}`} onClose={() => setCreateOpen(false)} />}
       {sourcePoint && usageAnswer && <EvidenceDrawer point={sourcePoint} answer={usageAnswer} posts={SKINCARE_POSTS} onClose={() => setSourcePoint(null)} />}
     </section>
   )
@@ -163,38 +164,73 @@ function SproutIcon() {
 }
 
 function ReuseShare({ report }: { report: NonNullable<ReturnType<typeof buildReuseReport>> }) {
-  return <section className="reuse-share-card panel" aria-label="复用占比口径">
-    <div className="reuse-share-visual"><strong>{formatPercent(report.reuseShare)}</strong><span>示例复用占比</span></div>
-    <div className="reuse-share-meter" aria-hidden="true"><span style={{ width: `${Math.max(0, Math.min(100, report.reuseShare * 100))}%` }} /></div>
-    <div className="reuse-share-copy"><strong>{report.reusedAsIs.length} / {report.denominator} 个可复用或需重配的现有项直接复用</strong><span>分子 = 直接复用已有组件 / 能力；分母 = 直接复用 + 需重配置的现有项。planned 扩展点不计入分子或分母。</span><small>这是本地 mock 能力清单的计算比例，不是线上复用收益或效率提升。</small></div>
+  return <section className="reuse-share-card panel" aria-label="复用占比">
+    <div className="reuse-share-visual"><strong>{formatPercent(report.reuseShare)}</strong><span>复用占比</span></div>
+    <div className="reuse-share-body">
+      <p className="reuse-share-headline"><strong>{report.reusedAsIs.length} / {report.denominator}</strong> 项已有能力可直接复用</p>
+      <div className="reuse-share-meter" aria-hidden="true"><span style={{ width: `${Math.max(0, Math.min(100, report.reuseShare * 100))}%` }} /></div>
+      <small>分母为“直接复用 + 改配置”，待研发项不计入；基于本地示例计算，不代表线上收益。</small>
+    </div>
   </section>
 }
 
-function ReuseColumn({ title, kicker, count, tone, children }: { title: string; kicker: string; count: number; tone: 'green' | 'amber' | 'planned'; children: React.ReactNode }) {
-  return <section className={`reuse-report-column is-${tone}`}><header><div><span>{kicker}</span><h3>{title}</h3></div><strong>{count}</strong></header><div className="reuse-report-items">{count > 0 ? children : <p className="reuse-column-empty">此目标没有对应项目。</p>}</div></section>
+function ReusedGroups({ items }: { items: ReuseReport['reusedAsIs'] }) {
+  return <>{REUSE_GROUPS.map((group) => {
+    const groupItems = items.filter((item) => item.group === group)
+    if (groupItems.length === 0) return null
+    return <div className={`reuse-group ${groupItems.length > 6 ? 'is-wide' : ''}`} key={group}>
+      <h4 className="reuse-group-title">{group}<span>{groupItems.length}</span></h4>
+      {groupItems.map((item) => <article className="reuse-report-item" key={`${item.kind}-${item.id}`}><span className="reuse-item-status is-existing"><Check size={12} /></span><div><strong>{item.name}</strong>{COMPONENT_NOTES[item.id] && <small>{COMPONENT_NOTES[item.id]}</small>}</div></article>)}
+    </div>
+  })}</>
+}
+
+function ReuseColumn({ title, subtitle, count, tone, children }: { title: string; subtitle: string; count: number; tone: 'green' | 'amber' | 'planned'; children: React.ReactNode }) {
+  return <section className={`reuse-report-column is-${tone}`}><header><div><h3>{title}</h3><span>{subtitle}</span></div><strong>{count}</strong></header><div className="reuse-report-items">{count > 0 ? children : <p className="reuse-column-empty">没有对应项目。</p>}</div></section>
+}
+
+function CreateSceneDialog({ target, onClose }: { target: string; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+  return createPortal(
+    <div className="s2-modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
+      <div className="s2-modal reuse-create-dialog" role="dialog" aria-modal="true" aria-labelledby="reuse-create-title">
+        <button type="button" className="s2-modal-close" onClick={onClose} aria-label="关闭"><X size={16} /></button>
+        <span className="reuse-dev-tag">开发中</span>
+        <h3 id="reuse-create-title">一键生成新场景</h3>
+        <p className="s2-modal-lead">系统将依据本复用清单创建“{target}”场景：直接复用项沿用来源场景配置，改配置项按清单预填，待研发项提交研发排期。</p>
+        <p className="reuse-create-note">该功能尚在开发中，当前演示不会创建场景。</p>
+        <div className="reuse-create-actions"><button type="button" className="reuse-button reuse-button-primary" onClick={onClose}>知道了</button></div>
+      </div>
+    </div>,
+    document.body,
+  )
 }
 
 function UsageAnswerPreview({ answer, onOpenSource }: { answer: RenderedAnswer; onOpenSource: (point: AnswerPoint) => void }) {
   const conclusion = answer.sections.find((section) => section.componentId === 'conclusion')
   const steps = answer.sections.find((section) => section.componentId === 'step-list')
   const pitfalls = answer.sections.find((section) => section.componentId === 'pitfall-card')
-  const sourceCount = answer.sections.flatMap((section) => section.points).reduce((sum, point) => sum + point.evidenceIds.length, 0)
 
   return <section className="reuse-preview-panel panel" aria-labelledby="reuse-answer-title">
-    <div className="reuse-preview-heading"><div><h3 id="reuse-answer-title">护肤 · 怎么使用 · 答案预览</h3><p>问题：{USAGE_QUERY.text} · 展示内容均来自已标注的本地 mock 来源</p></div><span className="reuse-existing-badge"><Check size={12} />existing 组件</span></div>
+    <div className="reuse-preview-heading"><div><h3 id="reuse-answer-title">新场景答案预览</h3><p>{USAGE_QUERY.text} · 点击要点可查看来源</p></div><span className="reuse-existing-badge"><Check size={13} />答案主体均为已有组件</span></div>
     <div className="reuse-preview-layout">
       <div className="reuse-phone-wrap"><div className="reuse-phone-frame"><div className="reuse-phone-top"><span className="reuse-phone-camera" /><span>小红书 AI 搜</span></div><div className="reuse-phone-content">
-        <div className="reuse-phone-kicker">问题</div><h4 className="reuse-phone-query">{USAGE_QUERY.text}</h4><div className="reuse-phone-state"><span />模板复用演示 · 共用护肤帖子池</div>
-        {conclusion && <section className="reuse-answer-section is-conclusion"><div className="reuse-section-title"><span className="reuse-section-dot" /><strong>{conclusion.title}</strong><span>existing</span></div>{conclusion.points.map((point) => <AnswerAction key={point.id} point={point} onClick={() => onOpenSource(point)} />)}</section>}
-        {steps && <section className="reuse-answer-section is-steps"><div className="reuse-section-title"><span className="reuse-section-dot" /><strong>{steps.title}</strong><span>existing</span></div>
+        <h4 className="reuse-phone-query">{USAGE_QUERY.text}</h4><div className="reuse-phone-state"><span />与来源场景共用帖子池</div>
+        {conclusion && <section className="reuse-answer-section is-conclusion"><div className="reuse-section-title"><span className="reuse-section-dot" /><strong>{conclusion.title}</strong><span>已有</span></div>{conclusion.points.map((point) => <AnswerAction key={point.id} point={point} onClick={() => onOpenSource(point)} />)}</section>}
+        {steps && <section className="reuse-answer-section is-steps"><div className="reuse-section-title"><span className="reuse-section-dot" /><strong>{steps.title}</strong><span>已有</span></div>
           <div className="reuse-utensil-group"><ol>{steps.points.map((point) => <li key={point.id}><AnswerAction point={point} onClick={() => onOpenSource(point)} /></li>)}</ol></div>
         </section>}
-        {pitfalls && pitfalls.points.length > 0 && <section className="reuse-answer-section is-pitfall"><div className="reuse-section-title"><span className="reuse-section-dot" /><strong>{pitfalls.title}</strong><span>existing</span></div>{pitfalls.points.map((point) => <AnswerAction key={point.id} point={point} onClick={() => onOpenSource(point)} />)}</section>}
-        <div className="reuse-source-footer"><div><strong>引用来源</strong><span>{answer.footer.noteCount} 笔记 · {answer.footer.commentCount} 评论</span></div><small>{sourceCount} 个引用关联 · 最近示例 {answer.footer.latestDate ?? '—'}</small></div>
+        {pitfalls && pitfalls.points.length > 0 && <section className="reuse-answer-section is-pitfall"><div className="reuse-section-title"><span className="reuse-section-dot" /><strong>{pitfalls.title}</strong><span>已有</span></div>{pitfalls.points.map((point) => <AnswerAction key={point.id} point={point} onClick={() => onOpenSource(point)} />)}</section>}
+        <div className="reuse-source-footer"><strong>引用来源</strong><span>{answer.footer.noteCount} 笔记 · {answer.footer.commentCount} 评论</span></div>
       </div></div></div>
-      <aside className="reuse-preview-aside"><div className="reuse-aside-card"><span className="reuse-aside-kicker">带走了什么</span><h4>当前答案主体仅包含已有能力</h4><ul>{answer.sections.map((section) => <li key={section.componentId}><span className="reuse-status-dot" /><span>{section.title}</span><code>{section.status}</code></li>)}</ul><p>点击答案要点可检查来源原文、立场、时间和规则 trace。</p></div>
-        <div className="reuse-planned-preview"><div className="reuse-planned-preview-heading"><span className="reuse-dash-icon" /><div><strong>用量与等待时长参数条</strong><small>待研发概念占位 · 不在答案主体中</small></div><span className="reuse-planned-label">planned</span></div><div className="reuse-planned-placeholder"><span>待研发能力位</span><small>未接入参数数据，不展示虚构比例</small></div></div>
-        <div className="reuse-target-note"><SproutIcon /><span>同一垂类内复用：选购和用法共用帖子池、结论、步骤、踩坑与溯源。用法问题不按肤质分组，避免“等待成膜”这类步骤被分组截断。</span></div>
+      <aside className="reuse-preview-aside">
+        <div className="reuse-aside-card"><h4>答案组件构成</h4><ul>{answer.sections.map((section) => <li key={section.componentId}><span className="reuse-status-dot" /><span>{section.title}</span><em>已有</em></li>)}</ul></div>
+        <div className="reuse-planned-preview"><div className="reuse-planned-preview-heading"><span className="reuse-dash-icon" /><strong>用量与等待时长参数条</strong><em>待研发</em></div><div className="reuse-planned-placeholder">尚未纳入答案结构</div></div>
+        <div className="reuse-target-note"><Sprout size={16} /><span><strong>配置调整说明：</strong>用法类问题关闭按肤质分组，避免“等待成膜”等步骤被拆分。</span></div>
       </aside>
     </div>
   </section>
@@ -202,7 +238,7 @@ function UsageAnswerPreview({ answer, onOpenSource }: { answer: RenderedAnswer; 
 
 function AnswerAction({ point, onClick }: { point: AnswerPoint; onClick: () => void }) {
   const hasSponsoredSource = point.evidenceIds.some((id) => SKINCARE_POSTS.find((post) => post.id === id)?.sponsored)
-  return <button type="button" className="reuse-answer-point" onClick={onClick}><span>{point.text}</span><small><span>{point.evidenceIds.length} 条引用</span>{hasSponsoredSource && <em>合作示例已标注</em>}<b>查看来源</b></small></button>
+  return <button type="button" className="reuse-answer-point" onClick={onClick}><span>{point.text}</span><small><span>{point.evidenceIds.length} 条引用</span>{hasSponsoredSource && <em>合作已标注</em>}<b>查看来源</b></small></button>
 }
 
 export { ReuseWizard }

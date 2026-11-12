@@ -306,12 +306,24 @@ export interface ReuseTargetScene {
   requiredComponentIds: string[]
   plannedComponentIds: string[]
   requiredCapabilityIds: string[]
-  configChanges: Array<{ key: string; from: string; to: string }>
+  /** Strategy items (template rules on step 01, filter rules on step 02) carried over unchanged. */
+  requiredRuleIds: string[]
+  configChanges: Array<{ key: string; label: string; stage: ReuseGroup; from: string; to: string }>
+}
+
+/** Which workspace step a reuse item belongs to; matches the names on the step bar. */
+export type ReuseGroup = '卡片模板' | '筛选策略' | '回归检查'
+
+/** A strategy item shown on step 01 or 02, named exactly as it appears there. */
+export interface ReusableRule {
+  id: string
+  name: string
+  group: ReuseGroup
 }
 
 export interface ReuseReport {
-  reusedAsIs: Array<{ id: string; name: string; kind: 'capability' | 'component' }>
-  reconfigured: Array<{ key: string; from: string; to: string }>
+  reusedAsIs: Array<{ id: string; name: string; kind: 'capability' | 'component' | 'rule'; group: ReuseGroup }>
+  reconfigured: Array<{ key: string; label: string; stage: ReuseGroup; from: string; to: string }>
   plannedExtensions: Array<{ id: string; name: string; reason: string }>
   reuseShare: number
   denominator: number

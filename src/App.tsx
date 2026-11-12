@@ -1,11 +1,11 @@
-import { Check, ChevronDown, CopyPlus, FilePlus2, Home, Layers3, MessageSquareWarning, Plus, RotateCcw, Sprout, UserRound } from 'lucide-react'
+import { Check, ChevronDown, CopyPlus, FilePlus2, Home, Layers3, MessageSquareWarning, Plus, RotateCcw, SlidersHorizontal, UserRound } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { CoveragePage } from './components/coverage/CoveragePage'
 import { FeedbackGovernance } from './components/feedback/FeedbackGovernance'
 import { ProductHome } from './components/home/ProductHome'
 import { ReuseWizard } from './components/reuse/ReuseWizard'
 import { changedLabels, StrategyWorkspace } from './components/strategy/StrategyWorkspace'
-import { SCENES, TEMPLATE_DRAFT_VERSION, TEMPLATE_PINNED_VERSION } from './data'
+import { TEMPLATE_DRAFT_VERSION, TEMPLATE_PINNED_VERSION } from './data'
 import { getConfigVersion } from './engine'
 import { type DemoRole, type PageId, ROLE_LABELS, useDemoStore } from './store'
 
@@ -103,9 +103,8 @@ function App() {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' })
   }, [activePage])
-  if (activePage === 'home') return <ProductHome onEnterDemo={() => openWorkspacePage('template')} onOpenReuse={() => openWorkspacePage('reuse')} />
-  const targetScene = SCENES.find((scene) => scene.id === 'skincare-usage')!
-  const currentScene = activePage === 'reuse' ? targetScene : SCENES.find((scene) => scene.id === 'skincare-shopping')!
+  if (activePage === 'home') return <ProductHome onEnterDemo={() => openWorkspacePage('template')} onOpenReuse={() => openWorkspacePage('reuse')} onOpenFeedback={() => openWorkspacePage('feedback')} />
+  const isStrategyArea = activePage !== 'feedback'
   const showSteps = activePage === 'template' || activePage === 'strategy' || activePage === 'coverage'
 
   return (
@@ -117,13 +116,11 @@ function App() {
               <span className="brand-mark" aria-hidden="true"><Layers3 size={17} strokeWidth={2.2} /></span>
               <span className="brand-name">策略共建台</span>
             </button>
-            <button type="button" className="topbar-link" onClick={() => navigate('home')}><Home size={14} strokeWidth={1.9} />产品介绍</button>
-            <button type="button" className={`topbar-link ${activePage === 'feedback' ? 'is-active' : ''}`} onClick={() => navigate('feedback')}><MessageSquareWarning size={14} strokeWidth={1.9} />反馈治理<span className="topbar-tag">开发中</span></button>
-            <span className="topbar-divider" aria-hidden="true" />
-            <button type="button" className="breadcrumb" onClick={() => navigate('template')} title="回到当前场景">
-              {activePage === 'reuse' && <span className="breadcrumb-label">新建场景</span>}
-              <span className="crumb-pill"><Sprout size={15} />{currentScene.vertical}</span><span className="crumb-slash">/</span><span className="crumb-text">{currentScene.intent}</span>
-            </button>
+            <nav className="topbar-nav" aria-label="主导航">
+              <button type="button" className="topbar-link" onClick={() => navigate('home')}><Home size={14} strokeWidth={1.9} />产品介绍</button>
+              <button type="button" className={`topbar-link ${isStrategyArea ? 'is-active' : ''}`} aria-current={isStrategyArea ? 'page' : undefined} onClick={() => navigate('template')}><SlidersHorizontal size={14} strokeWidth={1.9} />策略配置</button>
+              <button type="button" className={`topbar-link ${activePage === 'feedback' ? 'is-active' : ''}`} aria-current={activePage === 'feedback' ? 'page' : undefined} onClick={() => navigate('feedback')}><MessageSquareWarning size={14} strokeWidth={1.9} />反馈治理<span className="topbar-tag">开发中</span></button>
+            </nav>
           </div>
           <div className="topbar-right">
             <label className="role-pill" title="账号身份：可查看所有角色的配置，只能修改自己负责的部分"><span className="sr-only">当前账号身份</span><span className="role-avatar" aria-hidden="true"><UserRound size={13} /></span><select className="role-select" value={role} onChange={(event) => setRole(event.target.value as DemoRole)}>{(Object.keys(ROLE_LABELS) as DemoRole[]).map((id) => <option key={id} value={id}>{ROLE_LABELS[id]}</option>)}</select></label>

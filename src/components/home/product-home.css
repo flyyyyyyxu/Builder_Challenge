@@ -38,8 +38,10 @@
 .intro-brand strong { display: block; color: var(--intro-ink); font-size: 14px; font-weight: 750; letter-spacing: -.02em; }
 .intro-brand small { display: block; margin-top: 3px; color: var(--intro-muted-light); font-size: 11px; }
 .intro-nav { display: flex; align-items: center; gap: clamp(22px,3.6vw,52px); }
-.intro-nav a { color: #5c6965; font-size: 13px; font-weight: 550; transition: color .18s ease; }
-.intro-nav a:hover { color: var(--intro-green); }
+.intro-nav button { display: inline-flex; align-items: center; gap: 5px; padding: 6px 0; color: #5c6965; background: none; border: 0; cursor: pointer; font: inherit; font-size: 13px; font-weight: 550; white-space: nowrap; transition: color .18s ease; }
+.intro-nav button:hover { color: var(--intro-green); }
+.intro-nav button.is-active { color: var(--intro-ink); font-weight: 750; }
+.intro-nav-tag { padding: 1px 5px; color: #8b6221; background: #f8edda; border-radius: 4px; font-size: 10px; font-weight: 650; }
 .intro-header-cta { justify-self: end; display: inline-flex; align-items: center; gap: 9px; min-height: 40px; padding: 0 15px; color: #fff; background: var(--intro-green); border: 1px solid var(--intro-green); border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 700; transition: background .18s ease, transform .18s ease; }
 .intro-header-cta:hover,.intro-primary-cta:hover { background: var(--intro-green-dark); transform: translateY(-1px); }
 
@@ -206,8 +208,10 @@
   .intro-section-heading { grid-template-columns: 165px minmax(0,1fr); }
 }
 @media (max-width: 780px) {
-  .intro-header { grid-template-columns: 1fr auto; min-height: 63px; padding: 0 20px; }
-  .intro-nav { display: none; }
+  .intro-header { grid-template-columns: 1fr auto; row-gap: 2px; min-height: 63px; padding: 10px 20px 4px; }
+  .intro-nav { grid-column: 1 / -1; grid-row: 2; gap: 20px; }
+  .intro-nav button { font-size: 12px; }
+  .product-home section[id] { scroll-margin-top: 112px; }
   .intro-header-cta { min-height: 37px; padding: 0 12px; font-size: 11px; }
   .intro-brand-mark { width: 34px; height: 34px; }
   .intro-hero { grid-template-columns: 1fr; gap: 34px; min-height: 0; padding: 53px 25px 43px; }
