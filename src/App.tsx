@@ -114,7 +114,7 @@ function App() {
           <div className="topbar-left">
             <button type="button" className="brand-lockup" onClick={() => navigate('home')} title="回到产品介绍">
               <span className="brand-mark" aria-hidden="true"><Layers3 size={17} strokeWidth={2.2} /></span>
-              <span className="brand-name">策略共建台</span>
+              <span className="brand-name">AI 搜答策略共建平台</span>
             </button>
             <nav className="topbar-nav" aria-label="主导航">
               <button type="button" className="topbar-link" onClick={() => navigate('home')}><Home size={14} strokeWidth={1.9} />产品介绍</button>

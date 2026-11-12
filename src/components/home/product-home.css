@@ -58,9 +58,10 @@
 .intro-hero-copy { max-width: 640px; }
 .intro-overline { display: inline-flex; align-items: center; gap: 9px; color: #4c746a; font-size: 12px; font-weight: 750; letter-spacing: .035em; }
 .intro-overline-dot { width: 7px; height: 7px; background: #66a188; border-radius: 50%; box-shadow: 0 0 0 4px #e3f0e9; }
-.intro-question { margin: 28px 0 11px; color: #78857f; font-size: 13px; font-weight: 600; letter-spacing: .015em; }
-.intro-hero h1 { margin: 0; color: #203530; font-size: clamp(38px,4.25vw,62px); line-height: 1.22; font-weight: 760; letter-spacing: -.055em; }
+.intro-hero h1 { margin: 26px 0 0; color: #203530; font-size: clamp(38px,4.25vw,62px); line-height: 1.22; font-weight: 760; letter-spacing: -.055em; }
 .intro-hero h1 em,.intro-section-heading h2 em,.intro-closing h2 em { color: var(--intro-green); font-style: normal; }
+.intro-hero-tagline { margin: 24px 0 0; padding: 3px 0 3px 16px; color: var(--intro-ink); border-left: 4px solid var(--intro-green); font-size: clamp(19px,1.75vw,25px); line-height: 1.45; font-weight: 720; letter-spacing: -.025em; }
+.intro-hero-tagline strong { color: var(--intro-green); font-weight: 800; }
 .intro-hero-lede { max-width: 610px; margin: 22px 0 0; color: #5f6d68; font-size: 16px; line-height: 1.85; }
 .intro-hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 24px; margin-top: 30px; }
 .intro-primary-cta { display: inline-flex; align-items: center; justify-content: center; gap: 11px; min-height: 48px; padding: 0 19px; color: #fff; background: var(--intro-green); border: 1px solid var(--intro-green); border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 700; box-shadow: 0 8px 16px rgba(47,116,105,.14); transition: background .18s ease, transform .18s ease; }
@@ -252,8 +253,8 @@
   .intro-brand small { font-size: 10px; }
   .intro-header-cta { gap: 5px; padding: 0 9px; font-size: 10px; }
   .intro-hero { padding: 41px 17px 34px; }
-  .intro-question { margin-top: 22px; font-size: 11px; }
   .intro-hero h1 { font-size: 37px; }
+  .intro-hero-tagline { margin-top: 18px; padding-left: 12px; font-size: 17px; }
   .intro-hero-lede { margin-top: 16px; font-size: 13px; }
   .intro-hero-actions { gap: 15px; margin-top: 23px; }
   .intro-primary-cta { min-height: 44px; padding: 0 13px; font-size: 12px; }

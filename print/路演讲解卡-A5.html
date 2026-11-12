@@ -1,0 +1,484 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>路演讲解卡 · A5</title>
+<style>
+  :root {
+    --ink: #1c1f1e;
+    --ink-2: #4a514e;
+    --ink-3: #7a827e;
+    --line: #d9ddda;
+    --accent: #0f6b5c;
+    --accent-tint: #e7f2ef;
+    --ops: #2563a8;      --ops-tint: #e8f0fa;
+    --ads: #b23a72;      --ads-tint: #fbebf2;
+    --gov: #5f7a12;      --gov-tint: #f1f6e2;
+    --warn: #a4521b;     --warn-tint: #fbf0e6;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  @page { size: A4 landscape; margin: 0; }
+  html, body { background: #e9ebea; }
+  body {
+    font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
+    color: var(--ink);
+    font-size: 8.3pt;
+    line-height: 1.5;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* ---------- screen helper ---------- */
+  .howto {
+    max-width: 297mm; margin: 16px auto 0; padding: 10px 14px;
+    background: #fff; border-radius: 8px; font-size: 13px; line-height: 1.6; color: var(--ink-2);
+  }
+  .howto b { color: var(--ink); }
+
+  /* ---------- sheet & panels ---------- */
+  .sheet {
+    width: 297mm; height: 210mm; margin: 16px auto;
+    display: flex; background: #fff; position: relative;
+    box-shadow: 0 2px 14px rgba(0,0,0,.12);
+    page-break-after: always; break-after: page; overflow: hidden;
+  }
+  .sheet:last-of-type { page-break-after: auto; break-after: auto; }
+  .sheet::after { /* fold guide */
+    content: ""; position: absolute; left: 50%; top: 0; bottom: 0;
+    border-left: 0.2mm dashed #c9cecb;
+  }
+  .sheet-label {
+    position: absolute; top: 2.6mm; left: 50%; transform: translateX(-50%);
+    font-size: 5.5pt; color: #b5bbb8; background: #fff; padding: 0 1.5mm; z-index: 1; letter-spacing: .05em;
+  }
+  .panel {
+    width: 148.5mm; height: 210mm; padding: 8.5mm 9mm 7mm;
+    display: flex; flex-direction: column; overflow: hidden;
+  }
+  .panel-top {
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 6.5pt; color: var(--ink-3); letter-spacing: .04em;
+    border-bottom: 0.25mm solid var(--ink); padding-bottom: 1.4mm; margin-bottom: 3mm;
+  }
+  .panel-top b { color: var(--ink); font-weight: 700; }
+  .panel-foot {
+    margin-top: auto; padding-top: 2mm; display: flex; justify-content: space-between;
+    font-size: 6pt; color: var(--ink-3);
+  }
+
+  /* ---------- type ---------- */
+  h1 { font-size: 21pt; line-height: 1.12; letter-spacing: -.01em; font-weight: 800; }
+  h1 em { font-style: normal; color: var(--accent); }
+  .tagline { font-size: 9.5pt; font-weight: 700; margin-top: 1.6mm; }
+  .lede { color: var(--ink-2); margin-top: 1mm; }
+
+  .sec { margin-top: 3.4mm; }
+  .sec:first-child { margin-top: 0; }
+  .sec-h {
+    display: flex; align-items: center; gap: 2mm; margin-bottom: 1.6mm;
+    font-size: 10pt; font-weight: 800;
+  }
+  .sec-h .no {
+    font-size: 6.5pt; font-weight: 700; color: #fff; background: var(--ink);
+    padding: .3mm 1.5mm; border-radius: .6mm; letter-spacing: .06em;
+  }
+  .sec-h .sub { font-size: 6.8pt; font-weight: 400; color: var(--ink-3); margin-left: auto; }
+  h3 { font-size: 8.6pt; font-weight: 700; margin-bottom: .6mm; }
+  p + p { margin-top: .8mm; }
+  .muted { color: var(--ink-3); }
+  .small { font-size: 7pt; }
+  strong { font-weight: 700; }
+  .hl { background: linear-gradient(transparent 58%, #cfe9e2 58%); }
+
+  /* ---------- blocks ---------- */
+  .box {
+    border: 0.25mm solid var(--line); border-radius: 1.4mm; padding: 2mm 2.4mm;
+  }
+  .box.tint { background: var(--accent-tint); border-color: transparent; }
+  .box.warn { background: var(--warn-tint); border-color: transparent; }
+
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; vertical-align: top; padding: 1mm 1.4mm; border-bottom: 0.2mm solid var(--line); }
+  th { font-size: 6.6pt; font-weight: 600; color: var(--ink-3); border-bottom: 0.25mm solid var(--ink-2); }
+  td:first-child { font-weight: 700; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td .tag, .tag {
+    display: inline-block; font-size: 6.2pt; font-weight: 600; padding: 0 1.2mm; border-radius: .6mm; line-height: 1.6;
+    white-space: nowrap;
+  }
+  .tag.ops { color: var(--ops); background: var(--ops-tint); }
+  .tag.ads { color: var(--ads); background: var(--ads-tint); }
+  .tag.gov { color: var(--gov); background: var(--gov-tint); }
+  .tag.ink { color: #fff; background: var(--ink); }
+  .tag.line { color: var(--ink-2); border: 0.2mm solid var(--line); }
+
+  ol.chain { list-style: none; counter-reset: c; }
+  ol.chain > li { counter-increment: c; position: relative; padding-left: 5mm; }
+  ol.chain > li + li { margin-top: 1mm; }
+  ol.chain > li::before {
+    content: counter(c); position: absolute; left: 0; top: .35mm;
+    width: 3.4mm; height: 3.4mm; border-radius: 50%; background: var(--accent); color: #fff;
+    font-size: 5.8pt; font-weight: 700; text-align: center; line-height: 3.4mm;
+  }
+  ul.dots { list-style: none; }
+  ul.dots > li { position: relative; padding-left: 3mm; }
+  ul.dots > li + li { margin-top: .5mm; }
+  ul.dots > li::before { content: ""; position: absolute; left: .6mm; top: 1.85mm; width: 1.1mm; height: 1.1mm; border-radius: 50%; background: var(--ink-3); }
+
+  .arrow-row { display: flex; align-items: center; gap: 1.6mm; margin: 1.6mm 0; font-weight: 700; color: var(--accent); }
+  .arrow-row::before, .arrow-row::after { content: ""; flex: 1; border-top: 0.25mm solid var(--accent); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1.8mm; }
+
+  .role { border-radius: 1.4mm; padding: 1.8mm 2mm; }
+  .role.ops { background: var(--ops-tint); }
+  .role.ads { background: var(--ads-tint); }
+  .role.gov { background: var(--gov-tint); }
+  .role h3 { display: flex; justify-content: space-between; align-items: baseline; }
+  .role.ops h3 { color: var(--ops); } .role.ads h3 { color: var(--ads); } .role.gov h3 { color: var(--gov); }
+  .role h3 small { font-size: 6pt; font-weight: 600; opacity: .8; }
+  .role dl { font-size: 7.2pt; line-height: 1.45; }
+  .role dt { font-weight: 700; color: var(--ink-2); margin-top: .8mm; font-size: 6.6pt; }
+  .role dd { margin: 0; }
+
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.6mm; }
+  .step { border: 0.25mm solid var(--ink); border-radius: 1.4mm; padding: 1.8mm 2mm; position: relative; }
+  .step .n { font-size: 11pt; font-weight: 800; color: var(--accent); line-height: 1; }
+  .step h3 { margin-top: .8mm; }
+  .step p { font-size: 7.2pt; line-height: 1.45; }
+  .step + .step::before {
+    content: "→"; position: absolute; left: -1.75mm; top: 3mm; transform: translateX(-50%);
+    font-size: 7pt; color: var(--ink-3); background: #fff;
+  }
+
+  /* wireframe */
+  .wf { border: 0.25mm solid var(--ink-2); border-radius: 1.2mm; overflow: hidden; font-size: 6.4pt; line-height: 1.35; }
+  .wf-bar { background: var(--ink); color: #fff; padding: .9mm 1.6mm; display: flex; justify-content: space-between; }
+  .wf-flow { background: #f2f4f3; padding: .8mm 1.6mm; border-bottom: 0.2mm solid var(--line); color: var(--ink-2); }
+  .wf-body { display: grid; grid-template-columns: 1.55fr 1fr; }
+  .wf-left { padding: 1.4mm 1.6mm; border-right: 0.2mm solid var(--line); }
+  .wf-right { padding: 1.4mm 1.6mm; background: #fafbfa; }
+  .wf-tabs { display: flex; gap: 1mm; margin-bottom: 1mm; }
+  .wf-tabs span { border: 0.2mm solid var(--line); padding: 0 1mm; border-radius: .5mm; }
+  .wf-tabs span.on { border-color: var(--ink); font-weight: 700; }
+  .wf-line { height: 1.3mm; background: #e5e8e6; border-radius: .4mm; margin-top: .9mm; }
+  .wf-line.dim { background: #f0f2f1; }
+  .phone { border: 0.25mm solid var(--ink-2); border-radius: 2mm; padding: 1.2mm; }
+  .phone .blk { border: 0.2mm solid var(--line); border-radius: .6mm; padding: .5mm 1mm; margin-top: .7mm; background: #fff; }
+  .phone .blk.new { border-color: var(--accent); color: var(--accent); }
+
+  .num-big { font-size: 15pt; font-weight: 800; line-height: 1; color: var(--accent); }
+  .kpi { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.6mm; }
+  .kpi .box { padding: 1.6mm 2mm; }
+  .kpi .lab { font-size: 6.4pt; color: var(--ink-3); margin-top: .8mm; line-height: 1.35; }
+
+  .timeline { display: grid; grid-template-columns: 9mm 1fr; row-gap: .9mm; column-gap: 2mm; }
+  .timeline .t { font-weight: 800; color: var(--accent); text-align: right; }
+
+  .qa dt { font-weight: 700; margin-top: 1.1mm; }
+  .qa dt::before { content: "Q  "; color: var(--accent); }
+  .qa dd { margin: 0; color: var(--ink-2); padding-left: 3.6mm; }
+
+  .pull {
+    border-left: 0.8mm solid var(--accent); padding: .6mm 0 .6mm 2.4mm; font-weight: 700; font-size: 8.8pt;
+  }
+
+  @media print {
+    html, body { background: #fff; }
+    .howto { display: none; }
+    .sheet { margin: 0; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="howto">
+  <b>打印方式：</b>A4 横向、<b>双面打印、短边翻转</b>、缩放 100%（不要“适合页面”），边距选“无”。打完沿中间虚线对折，第 1 页朝外即为封面。<br>
+  只能单面打印时：分别打印第 1、2 张，各自对折后背靠背粘在一起，顺序一样。
+</div>
+
+<!-- ================= SHEET 1 · 外侧：左 = P4（封底），右 = P1（封面） ================= -->
+<section class="sheet">
+  <span class="sheet-label">外侧 · 沿虚线对折</span>
+
+  <!-- ---------- P4 评估方案与成效 ---------- -->
+  <article class="panel">
+    <div class="panel-top"><span><b>04</b> 评估方案 · 成效 · 讲解节奏</span><span>4 / 4</span></div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">成效</span>Demo 里能现场算出来的<span class="sub">规则模拟 · 固定样例 · 非线上指标</span></div>
+      <div class="kpi">
+        <div class="box tint">
+          <div class="num-big">1 → 0</div>
+          <div class="lab">8 条独立标注样例中的回归。宽范围 <b>6 升 / 1 平 / 1 回归</b> → 收窄到选购类 <b>6 升 / 2 平 / 0 回归</b></div>
+        </div>
+        <div class="box">
+          <div class="num-big" style="color:var(--ink)">每条</div>
+          <div class="lab">答案要点都能点开看引用笔记、日期、立场，以及命中的规则 trace</div>
+        </div>
+        <div class="box">
+          <div class="num-big" style="color:var(--ink)">3 栏</div>
+          <div class="lab">复用报告：直接复用 / 改配置 / 待研发；待研发项不计入复用占比</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">评估</span>三层指标，按阶段验证</div>
+      <table>
+        <tr><th style="width:21mm">层级</th><th>看什么</th><th style="width:25mm">现在的状态</th></tr>
+        <tr><td>覆盖与回归</td><td>要点覆盖（对照独立标注）、引用可追溯率、陈旧引用数、商业内容未标注数、回归样例数</td><td><span class="tag ink">Demo 内实时计算</span></td></tr>
+        <tr><td>采用与效率</td><td>经平台验证的策略变更数和占比；复用已有能力的场景数；策略需求从提出到可验证改动的周期</td><td><span class="tag line">上线后统计，先对齐基线</span></td></tr>
+        <tr><td>线上结果</td><td>满意度 / 点踩率、改写重搜率、原文点击率</td><td><span class="tag line">灰度实验，不预报数值</span></td></tr>
+      </table>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">验证</span>平台需求本身还要验证</div>
+      <div class="grid2">
+        <div class="box">
+          <h3>怎么验</h3>
+          <ul class="dots small">
+            <li>访谈场景 PM、行业运营各 2–3 人；商业化、社区治理各 1 人</li>
+            <li>盘点：各场景模板 / 策略的硬编码与重复率；一次策略变更的周期与研发占比；跨团队需求怎么响应</li>
+          </ul>
+        </div>
+        <div class="box warn">
+          <h3>止损线</h3>
+          <p class="small">若结果显示只是<b>单一业务的偶发需求</b>，就不先建平台，改在点点内部做组件化。</p>
+          <p class="small muted">准入标准：≥2 个场景反复需要、且能参数化，才沉淀为策略位。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">节奏</span>5 分钟讲法<span class="sub">讲 4.5 分钟，留 30 秒对话</span></div>
+      <div class="timeline small">
+        <span class="t">30″</span><span><b>定位</b>：搜真人经验的问题，通用 AI 答不好 → 差异化在“把真人经验组织好” → 组织方式要由业务持续调、能验证 → 所以做平台</span>
+        <span class="t">90″</span><span><b>01 搭模板</b>：行业运营开“按肤质分组 + 踩坑提醒”，预览即时变化，点开看 3 条原文</span>
+        <span class="t">90″</span><span><b>03 跑回归</b>：定位“防晒和粉底的先后顺序”漏了“等待成膜” → 收窄到选购类 → 重跑归零</span>
+        <span class="t">60″</span><span><b>复用 + 收尾</b>：复用到“护肤 · 怎么使用”，看三栏清单 → 改了什么看得见、有没有回归查得到、哪些能带走说得清</span>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">追问</span>高频速答</div>
+      <dl class="qa small">
+        <dt>这个检查不就是你写死的必然结果吗？</dt>
+        <dd>是规则模拟，验证“改动对样例要点、引用的影响”，不是语义准确率；真实产品接 LLM 评审 + 人工评审。</dd>
+        <dt>为什么不直接让研发写死 / 为什么不是 Agent Builder？</dt>
+        <dd>单场景低频时写死更便宜；平台成立的前提是多场景反复需要。不让业务自由编排模型，只开放受约束的规则位。</dd>
+        <dt>引用对了，原帖不真实怎么办？</dt>
+        <dd>平台保障可追溯、有依据，不为真实性背书；靠反馈治理 + 线上验证兜底。</dd>
+      </dl>
+    </div>
+
+    <div class="panel-foot"><span>概念 Demo · 品牌与数据均为虚构</span><span>回归结果来自固定演示样例</span></div>
+  </article>
+
+  <!-- ---------- P1 封面：材料分析 → 推理 ---------- -->
+  <article class="panel">
+    <div class="panel-top"><span><b>27RPT · Demo Day</b>　小红书搜索产品再定义</span><span>讲解卡 1 / 4</span></div>
+
+    <div>
+      <h1>AI 搜答<br><em>策略共建台</em></h1>
+      <div class="tagline">不做更弱的通用 AI，做更强的小红书。</div>
+      <p class="lede">题目：如何平衡 AI 与真人内容。我的答案：平衡不靠 AI 或真人二选一，而靠<b>一套能共建、可验证、跟着社区迭代的内容规则</b>。</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">材料</span>用户是谁<span class="sub">来源：8 位访谈用户 + 10 条反馈</span></div>
+      <div class="box">
+        <p>来小红书搜<b>“要靠真人经验才能拿主意”</b>的问题：买之前比一比（油皮夏天防晒怎么选）、照着做（防晒和粉底先后顺序、海参蒸蛋怎么做）。</p>
+        <p>他们信<b>“和我情况一样的人”</b>的亲身经历，会核对出处和时间，对软广敏感；没耐心读长答案。</p>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">材料</span>反复出现的诉求 → 改善逻辑</div>
+      <table>
+        <tr><th style="width:17mm">用户在问</th><th>改善方向</th><th style="width:15mm">本质是</th></tr>
+        <tr><td>出处在哪？</td><td>每条结论挂引用，能点开原文</td><td><span class="tag line">怎么呈现</span></td></tr>
+        <tr><td>还新吗？</td><td>标日期，按垂类设时效窗口</td><td><span class="tag line">引用哪些</span></td></tr>
+        <tr><td>适合我吗？</td><td>按人群（肤质）分组，同人群经验优先</td><td><span class="tag line">怎么呈现</span></td></tr>
+        <tr><td>说法不一？</td><td>保留正反面经验，不平均成一句话</td><td><span class="tag line">引用哪些</span></td></tr>
+        <tr><td>是广告吗？</td><td>合作内容可识别、限量、不早于结论</td><td><span class="tag line">两者都有</span></td></tr>
+        <tr><td>能短点吗？</td><td>一句话结论 + 结构化组件</td><td><span class="tag line">怎么呈现</span></td></tr>
+      </table>
+      <p class="small muted" style="margin-top:.8mm">数量只描述这批材料，不代表总体占比。</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">推理</span>为什么落到一个“平台”</div>
+      <ol class="chain">
+        <li>六条改善<b>都不是“模型答得更准”</b>，而是“引用哪些笔记、卡片怎么呈现”——是内容组织规则。</li>
+        <li>每条规则背后<b>有不同的团队承担后果</b>：人群 / 时效归行业运营，合作内容归商业化，底线与分歧归社区治理。</li>
+        <li>规则<b>因垂类而异、要随内容趋势常改</b>（护肤看肤质、防晒配方迭代快），每次排研发写死跟不上，改坏了也没人看得见。</li>
+      </ol>
+      <div class="arrow-row">所以</div>
+      <p class="pull">做一个让各团队在权限内共建答案规则、改动上线前先跑回归的平台。我的用户不是 C 端，是这些业务团队。</p>
+    </div>
+
+    <div class="panel-foot"><span>AI 平台产品方向</span><span>翻开 → 用户画像 · 产品逻辑</span></div>
+  </article>
+</section>
+
+<!-- ================= SHEET 2 · 内侧：左 = P2，右 = P3 ================= -->
+<section class="sheet">
+  <span class="sheet-label">内侧 · 沿虚线对折</span>
+
+  <!-- ---------- P2 平台用户画像 + 产品逻辑 ---------- -->
+  <article class="panel">
+    <div class="panel-top"><span><b>02</b> 平台用户画像 · 产品逻辑</span><span>2 / 4</span></div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">用户</span>谁在用这个平台<span class="sub">点点 · 商业化 · 电商 · 行业 · 社区的 PM 与运营</span></div>
+      <p class="small" style="margin-bottom:1.4mm">首期三个角色。<b>划分原则：谁承担规则的后果，谁负责这条规则。</b></p>
+      <div class="grid3">
+        <div class="role ops">
+          <h3>行业运营 <small>主线用户</small></h3>
+          <dl>
+            <dt>是谁</dt><dd>懂垂类，知道什么帖子对这类问题有用</dd>
+            <dt>卡点</dt><dd>垂类经验进不了答案；改一条要排研发</dd>
+            <dt>要什么</dt><dd>自己调分组、时效、互动门槛、亲身经验优先，并马上看到效果</dd>
+          </dl>
+        </div>
+        <div class="role ads">
+          <h3>商业化 <small>协作方</small></h3>
+          <dl>
+            <dt>是谁</dt><dd>管合作内容的商业供给与人群定向</dd>
+            <dt>卡点</dt><dd>合作内容放哪没有明规则，容易和社区底线撞车</dd>
+            <dt>要什么</dt><dd>在底线内提议位置与人群匹配；冲突有人接、有地方谈</dd>
+          </dl>
+        </div>
+        <div class="role gov">
+          <h3>社区治理 <small>守底线</small></h3>
+          <dl>
+            <dt>是谁</dt><dd>守社区真实感，其他角色的规则不能越过它</dd>
+            <dt>卡点</dt><dd>别人改了规则、改坏了，自己看不见</dd>
+            <dt>要什么</dt><dd>锁定底线（来源溯源、合作标识、正反面保留），所有改动可见</dd>
+          </dl>
+        </div>
+      </div>
+      <p class="small muted" style="margin-top:1.2mm">不是谁：C 端用户不直接用；召回、排序、模型仍归研发与算法。</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">逻辑</span>产品怎么成立</div>
+      <div class="box tint" style="margin-bottom:1.8mm">
+        <p><b>一句话：</b>把“答案怎么组织”拆成明确的<b>规则位</b>，交给承担后果的团队维护，再用<b>回归检查</b>兜住每一次改动。</p>
+      </div>
+      <table>
+        <tr><th style="width:19mm">规则位</th><th>回答什么问题</th><th style="width:28mm">谁来配</th></tr>
+        <tr><td>卡片模板</td><td>答案卡怎么呈现：结论、分组、踩坑提醒、组件顺序、合作内容位置</td><td><span class="tag ops">运营</span> <span class="tag ads">商业</span> <span class="tag gov">治理</span></td></tr>
+        <tr><td>筛选策略</td><td>哪些笔记能入卡：来源类型、时效、互动门槛、人群匹配、合作上限</td><td><span class="tag ops">运营</span> <span class="tag ads">商业</span> <span class="tag gov">治理</span></td></tr>
+        <tr><td>总结校验</td><td>总结说得对不对</td><td><span class="tag line">规划中</span></td></tr>
+      </table>
+    </div>
+
+    <div class="sec">
+      <div class="grid2">
+        <div class="box">
+          <h3>三条运行规则</h3>
+          <ol class="chain small">
+            <li>生效顺序：<b>社区治理底线 → 商业化 → 行业运营</b></li>
+            <li>人人可看全部配置，<b>只能改自己负责的</b></li>
+            <li>规则冲突<b>转为待讨论</b>、通知负责人，不被单方覆盖</li>
+          </ol>
+        </div>
+        <div class="box">
+          <h3>平台边界</h3>
+          <p class="small"><b>业务可配：</b>内容依据、已有组件开关与顺序、分组维度、生效范围、样例集</p>
+          <p class="small"><b>仍需研发 / 算法：</b>召回、排序、模型调优、新组件、新数据源</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="pull" style="font-size:8.3pt">平衡点在三者兼顾：商业化 + 社区真实感 + 用户体验。AI 负责把经验组织好，真人笔记保留出处、分歧和适用条件。</div>
+    </div>
+
+    <div class="panel-foot"><span>规则融合社区、业务和用户习惯</span><span>不由一个团队拍板</span></div>
+  </article>
+
+  <!-- ---------- P3 功能流程 + 原型设计 ---------- -->
+  <article class="panel">
+    <div class="panel-top"><span><b>03</b> 功能流程 · 原型设计</span><span>3 / 4</span></div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">流程</span>一次规则改动的主线<span class="sub">案例：护肤 · 油皮夏天防晒怎么选</span></div>
+      <div class="steps">
+        <div class="step">
+          <div class="n">01</div><h3>搭建卡片模板</h3>
+          <p>行业运营开启“按肤质分组”“踩坑提醒”；右侧答案卡即时出现油皮 / 干皮分组和踩坑条，点开看引用原文。</p>
+        </div>
+        <div class="step">
+          <div class="n">02</div><h3>配置筛选策略</h3>
+          <p>按角色配置哪些笔记能入卡；显示新入卡 / 被筛掉的笔记及原因。商业化想把品牌说放到结论前 → 提示与底线冲突，转待讨论。</p>
+        </div>
+        <div class="step">
+          <div class="n">03</div><h3>运行回归检查</h3>
+          <p>跑 8 条固定样例，揪出“防晒和粉底先后顺序”漏了“等待成膜”——分组范围过宽；收窄到选购类后重跑，回归消失再上线。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">延伸</span>让规则带走、跟着社区变</div>
+      <div class="grid2">
+        <div class="box">
+          <h3>场景复用</h3>
+          <p class="small">“护肤 · 选购怎么选”→“护肤 · 怎么使用”，同垂类共用笔记池。报告分三栏：<b>直接复用</b>（筛选策略全部沿用）/ <b>改配置</b>（分组、组件顺序、样例集）/ <b>待研发</b>（用量与等待时长参数条）。</p>
+        </div>
+        <div class="box">
+          <h3>反馈治理 <span class="tag line">开发中</span></h3>
+          <p class="small">用户反馈（不相关 / 软广 / 过时 / 不实）→ 多维自动打分附证据 → 分级处置：高置信自动降权可撤销、中置信人工复核、低置信观察 → 复核结论校准阈值、补进样例集。</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">原型</span>工作台长这样</div>
+      <div class="wf">
+        <div class="wf-bar"><span>策略共建台　产品介绍 · <b>策略配置</b> · 反馈治理</span><span>账号身份 ▾　＋新建场景</span></div>
+        <div class="wf-flow"><b>01 搭建卡片模板</b>　──　02 配置筛选策略　──　03 运行回归检查　<span class="muted">（吸顶，显示“草稿 v1.2 · 改动 2 项”）</span></div>
+        <div class="wf-body">
+          <div class="wf-left">
+            <div class="wf-tabs"><span class="on">行业运营</span><span>商业化</span><span>社区治理 🔒</span></div>
+            <div>职责说明：你负责答案怎么组织</div>
+            <div class="wf-line"></div><div class="wf-line"></div><div class="wf-line dim"></div>
+            <div style="margin-top:1mm" class="muted">非本角色页签只读并写明负责人；上游开关关闭时下游置灰标“未生效”；底部列出“需研发 / 算法”边界</div>
+          </div>
+          <div class="wf-right">
+            <div style="margin-bottom:.6mm">答案卡预览 <span class="muted">改动前 / 改动后</span></div>
+            <div class="phone">
+              <div class="blk">一句话结论</div>
+              <div class="blk new">＋ 油皮 / 干皮分组</div>
+              <div class="blk new">＋ 踩坑提醒（3 条引用）</div>
+              <div class="blk">来源底栏 · 治理锁定</div>
+            </div>
+            <div class="muted" style="margin-top:.6mm">点要点 → 溯源抽屉</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-h"><span class="no">设计</span>几处关键取舍</div>
+      <ul class="dots small">
+        <li><b>按角色而非按参数组织页面</b>：每个角色一眼看到自己负责什么，减少“该点哪里”。</li>
+        <li><b>配置与效果同屏</b>：左配右看，改动区域高亮、可切前后对比，规则不再是黑盒。</li>
+        <li><b>不伪造结果</b>：回归需显式运行；草稿一变就比对配置指纹、提示重跑，修复后必须重跑才算数。</li>
+        <li><b>冲突不自动裁决</b>：只提示规则来源、负责人和待讨论选项，尊重真实组织流程。</li>
+        <li><b>诚实的边界</b>：待研发组件虚线标出、不计入复用收益；溯源保障可追溯，不为帖子真实性背书。</li>
+      </ul>
+    </div>
+
+    <div class="panel-foot"><span>首页 → 工作台 01 / 02 / 03 → 复用 · 反馈治理</span><span>翻面 → 评估与成效</span></div>
+  </article>
+</section>
+
+</body>
+</html>
