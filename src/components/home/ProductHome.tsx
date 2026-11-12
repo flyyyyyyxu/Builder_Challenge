@@ -10,8 +10,10 @@ import {
   Search,
   ShieldCheck,
   SlidersHorizontal,
+  MessageSquareWarning,
   UsersRound,
 } from 'lucide-react'
+import { FEEDBACK_PIPELINE } from '../feedback/FeedbackGovernance'
 import './product-home.css'
 
 type ProductHomeProps = {
@@ -43,8 +45,8 @@ const userPainPoints = [
 const productValues = [
   {
     icon: SlidersHorizontal,
-    title: '让业务经验可配置',
-    description: '把内容依据、答案结构和适用范围放到明确的策略位中，不把模型底座交给业务操作。',
+    title: '让三方共建、权责清楚',
+    description: '商业化、行业运营、社区治理各自负责卡片模板的槽位和帖子筛选的规则；账号之间可互相查看，只能修改自己负责的部分。',
   },
   {
     icon: FileSearch,
@@ -61,20 +63,20 @@ const productValues = [
 const demoSteps = [
   {
     number: '01',
-    title: '配置策略，看答案与来源',
-    description: '以“油皮夏天防晒怎么选”为例，调整答案呈现，查看前后变化并打开引用溯源。',
+    title: '搭建卡片模板',
+    description: '以“油皮夏天防晒怎么选”为例，行业运营开启按肤质分组和踩坑提醒，查看答案卡的变化并打开引用溯源。',
     icon: SlidersHorizontal,
   },
   {
     number: '02',
-    title: '运行样例，定位影响原因',
-    description: '检查 8 条固定护肤样例；在“防晒和粉底的先后顺序”中追踪“等待成膜”要点为何遗漏。',
+    title: '配置筛选策略',
+    description: '按角色查看决定帖子能否入卡的规则；切换到商业化账号，演示与社区治理底线规则的冲突如何转为待讨论。',
     icon: Search,
   },
   {
     number: '03',
-    title: '收窄范围，再次验证',
-    description: '将分组策略限制在选购类问题，按新配置重跑，确认该固定样例中的回归消失。',
+    title: '运行回归检查',
+    description: '检查 8 条固定样例，追踪“等待成膜”要点为何遗漏；把分组范围收窄到选购类后重跑，回归消失。',
     icon: Check,
   },
 ]
@@ -190,7 +192,7 @@ export function ProductHome({ onEnterDemo, onOpenReuse }: ProductHomeProps) {
             <div className="intro-solution-statement">
               <span className="intro-solution-mark"><Layers3 size={22} /></span>
               <h3>让业务经验进入答案，但不越过平台边界。</h3>
-              <p>业务团队可以调整内容依据、已有答案组件、分组维度与适用范围；召回、排序、模型调优、新数据源和新组件仍由研发与算法负责。</p>
+              <p>三个角色共同维护 AI 搜答案卡的呈现模板和帖子筛选规则；召回、排序、模型调优、新数据源和新组件仍由研发与算法负责。</p>
               <button type="button" className="intro-text-link" onClick={onEnterDemo}>查看策略配置与答案预览 <ArrowRight size={15} /></button>
             </div>
             <div className="intro-value-stack">
@@ -213,8 +215,8 @@ export function ProductHome({ onEnterDemo, onOpenReuse }: ProductHomeProps) {
         <section className="intro-section intro-flow" id="flow" aria-labelledby="flow-title">
           <div className="intro-section-heading intro-flow-heading">
             <span className="intro-section-index">03 / 怎么演示</span>
-            <div><h2 id="flow-title">一条可讲清的验证闭环，<br />再看能力如何带到新场景。</h2>
-              <p>先证明“改动看得见、回归查得到”，再单独展示“已有能力能否复用”。</p></div>
+            <div><h2 id="flow-title">一个场景的配置主线，<br />再看两项延伸能力。</h2>
+              <p>先走完“模板 → 筛选 → 回归”的主线，再看跨场景复用和反馈治理。</p></div>
           </div>
           <div className="intro-demo-flow">
             {demoSteps.map(({ number, title, description, icon: Icon }, index) => (
@@ -228,8 +230,19 @@ export function ProductHome({ onEnterDemo, onOpenReuse }: ProductHomeProps) {
           </div>
           <div className="intro-reuse-branch">
             <div className="intro-reuse-branch-icon"><Layers3 size={20} /></div>
-            <div className="intro-reuse-branch-copy"><span>独立能力展示</span><h3>跨场景复用：从护肤到家常菜</h3><p>分清哪些能力直接复用、哪些需要改配置、哪些仍待研发；复用项由已有能力计算，不把规划中的能力算作现成成果。</p></div>
+            <div className="intro-reuse-branch-copy"><span>延伸能力 · 右上角“新建场景 → 复用已有场景”</span><h3>场景复用：从“护肤 · 选购怎么选”到“护肤 · 怎么使用”</h3><p>同一垂类下的新意图，共用帖子池和已有组件；分清哪些能力直接复用、哪些需要改配置、哪些仍待研发，不把规划中的能力算作现成成果。</p></div>
             <button type="button" className="intro-reuse-link" onClick={onOpenReuse}>查看复用示例 <ArrowRight size={15} /></button>
+          </div>
+          <div className="intro-reuse-branch intro-feedback-branch" id="feedback">
+            <div className="intro-reuse-branch-icon"><MessageSquareWarning size={20} /></div>
+            <div className="intro-reuse-branch-copy">
+              <span>延伸能力 · 开发中</span>
+              <h3>反馈治理：被反馈帖子的评测打分与分级处置</h3>
+              <p>大部分反馈由系统自动分流，人工只处理需要判断的部分，提升反馈的处理效率和成效。</p>
+              <ol className="intro-feedback-steps">
+                {FEEDBACK_PIPELINE.map((step, index) => <li key={step.title}><strong>{String(index + 1).padStart(2, '0')} {step.title}</strong><span>{step.body}</span></li>)}
+              </ol>
+            </div>
           </div>
         </section>
 

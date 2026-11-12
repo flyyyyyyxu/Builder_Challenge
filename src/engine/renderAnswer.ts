@@ -31,6 +31,10 @@ export function renderAnswer(
       filteredEvidence.push({ evidenceId: post.id, reason: `来源类型“${post.kind === 'note' ? '笔记' : '评论'}”不在当前允许类型中。`, ruleId: 'allowed-content-kinds' })
       return false
     }
+    if (!config.evidence.allowSponsored && post.sponsored) {
+      filteredEvidence.push({ evidenceId: post.id, reason: '商业化策略未允许合作内容进入候选。', ruleId: 'allow-sponsored' })
+      return false
+    }
     if (config.evidence.freshnessDays !== '不限' && ageInDays(post.date, asOf) > config.evidence.freshnessDays) {
       filteredEvidence.push({ evidenceId: post.id, reason: `发布时间超出 ${config.evidence.freshnessDays} 天时效窗口。`, ruleId: 'freshness-window' })
       return false
@@ -105,7 +109,7 @@ export function renderAnswer(
         pointKey: definition.key,
         text: definition.text,
         evidenceIds: evidence.map((post) => post.id),
-        reason: `分组规则同时作用于用法类问题；“${definition.text}”符合来源条件，但在每组最多 ${config.presentation.groupPointLimit} 个步骤要点的呈现限制中被截断。`,
+        reason: `按肤质分组也作用到了用法类问题，步骤被拆进各组，每组最多保留 ${config.presentation.groupPointLimit} 条，这一步被截掉了。`,
         ruleId: 'persona-group-step-limit',
       })
       return false

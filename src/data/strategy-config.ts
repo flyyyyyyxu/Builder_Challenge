@@ -7,6 +7,7 @@ export const BASELINE_CONFIG: StrategyConfig = {
     freshnessDays: 180,
     includeCounterEvidence: true,
     labelSponsored: true,
+    allowSponsored: true,
   },
   presentation: {
     groupByPersona: false,

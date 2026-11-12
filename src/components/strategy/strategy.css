@@ -256,3 +256,64 @@
   .s2-proposal-card { flex-direction: column; align-items: stretch; }
   .s2-conflict-source { grid-template-columns: minmax(0, 1fr); }
 }
+
+/* ── Role tabs, template header, static rules, post changes (2026-11-13 restructure) ── */
+.s2-tab { font-size: 13px; }
+.s2-tab-you { margin-left: 2px; padding: 1px 5px; color: var(--brand-strong); background: var(--brand-soft); border-radius: 4px; font-size: 10px; font-weight: 650; }
+.s2-template-header { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.s2-template-library { display: flex; flex-wrap: wrap; gap: 6px; }
+.s2-template-chip { display: inline-flex; align-items: center; gap: 5px; padding: 5px 9px; color: #7a868b; background: #f6f8f8; border: 1px solid #e8ecec; border-radius: 7px; font-size: 11.5px; }
+.s2-template-chip small { color: #a0a9ac; font-size: 10px; }
+.s2-template-chip.is-active { color: var(--brand-strong); background: var(--brand-soft); border-color: #cfe3dc; font-weight: 650; }
+.s2-template-chip.is-active small { color: #5d8a80; }
+.s2-version-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; color: #6f7b80; font-size: 11.5px; }
+.s2-version-bar strong { color: #33434a; }
+.s2-version-draft { color: #8b6221; }
+.s2-version-draft strong { color: #8b6221; }
+.s2-version-bar .s2-text-button { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; padding: 4px 6px; font-size: 11.5px; }
+.s2-version-history { margin: 0; padding: 4px 0; list-style: none; background: #f8faf9; border: 1px solid #edf0f0; border-radius: 8px; }
+.s2-version-history li { display: grid; grid-template-columns: 70px 64px minmax(0,1fr) auto; gap: 10px; padding: 6px 11px; color: #66737a; font-size: 11px; line-height: 1.45; }
+.s2-version-history li > span:first-child { color: #33434a; font-weight: 650; }
+.s2-version-history li > span:last-child { color: #9aa3a7; }
+.s2-version-history li.is-draft { color: #8b6221; background: #fbf6ec; }
+.s2-version-history li.is-draft > span:first-child { color: #8b6221; }
+.s2-policy-item.is-static { min-height: 72px; }
+.s2-static-badge { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; color: #6f7b80; background: #f3f5f5; border: 1px solid #e5eaea; border-radius: 6px; font-size: 11px; white-space: nowrap; }
+.s2-tab-footnote { margin: 10px 2px 0; color: #8b969a; font-size: 11px; }
+.s2-post-changes { margin-top: 12px; padding: 12px 13px; background: #fff; border: 1px solid var(--line); border-radius: 10px; }
+.s2-post-changes header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; color: #33434a; font-size: 12.5px; }
+.s2-post-changes header span { color: #87929a; font-size: 11px; }
+.s2-post-changes-empty { margin: 0; color: #8b969a; font-size: 11px; }
+.s2-post-changes ul { display: flex; flex-direction: column; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.s2-post-changes li { display: flex; align-items: flex-start; gap: 7px; padding: 7px 8px; border-radius: 7px; font-size: 11px; line-height: 1.5; }
+.s2-post-changes li > svg { flex: 0 0 12px; margin-top: 3px; }
+.s2-post-changes li strong { display: block; color: #33434a; font-size: 11px; }
+.s2-post-changes li.is-added { color: #3f6f63; background: #eef6f2; }
+.s2-post-changes li.is-removed { color: #8a5a3a; background: #fbf2ec; }
+
+/* ── 新增策略 request modal ── */
+.s2-new-strategy-button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; min-height: 34px; padding: 0 12px; color: var(--brand-strong); background: #fff; border: 1px solid #bcd7ce; border-radius: 8px; cursor: pointer; font-size: 12.5px; font-weight: 650; white-space: nowrap; }
+.s2-new-strategy-button:hover { background: var(--brand-soft); }
+.s2-modal-backdrop { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: rgba(24,34,40,.38); }
+.s2-modal { position: relative; width: min(100%, 480px); padding: 24px; background: #fff; border-radius: 14px; box-shadow: 0 24px 60px rgba(24,34,40,.22); }
+.s2-modal h3 { margin: 0 0 6px; color: var(--ink); font-size: 18px; }
+.s2-modal-close { position: absolute; top: 14px; right: 14px; display: grid; place-items: center; width: 30px; height: 30px; color: #7a868b; background: none; border: 0; border-radius: 8px; cursor: pointer; }
+.s2-modal-close:hover { background: #f2f5f4; }
+.s2-modal-lead { margin: 0 0 18px; color: #66737a; font-size: 13px; line-height: 1.55; }
+.s2-modal-field { display: flex; flex-direction: column; gap: 6px; margin-bottom: 14px; }
+.s2-modal-label { color: #4a585e; font-size: 12px; font-weight: 650; }
+.s2-modal-role { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 6px 10px; color: var(--brand-strong); background: var(--brand-soft); border-radius: 7px; font-size: 13px; font-weight: 650; }
+.s2-modal-role small { margin-left: 4px; color: #6d8f86; font-size: 11px; font-weight: 400; }
+.s2-modal-scene { color: #33434a; font-size: 13px; }
+.s2-modal textarea { width: 100%; padding: 10px 12px; color: var(--ink); font: inherit; font-size: 13px; line-height: 1.6; background: #fbfcfc; border: 1px solid var(--line-strong); border-radius: 9px; resize: vertical; }
+.s2-modal textarea:focus { outline: 2px solid rgba(47,116,105,.35); outline-offset: 1px; border-color: var(--brand); }
+.s2-modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
+.s2-modal-primary { min-height: 36px; padding: 0 18px; color: #fff; background: var(--brand); border: 0; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 650; }
+.s2-modal-primary:hover:not(:disabled) { background: var(--brand-strong); }
+.s2-modal-primary:disabled { background: #b9c9c4; cursor: not-allowed; }
+.s2-modal-success { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.s2-modal-success > svg { margin: 6px 0 10px; color: var(--brand); }
+.s2-modal-success p { margin: 0 0 16px; color: #4a585e; font-size: 13.5px; }
+.s2-modal-success code { padding: 1px 6px; background: #f1f5f4; border-radius: 5px; font-size: 12.5px; }
+.s2-modal-next { width: 100%; margin: 0 0 18px; list-style: decimal; padding: 12px 14px 12px 32px; color: #5b686e; text-align: left; background: #f8faf9; border-radius: 10px; font-size: 12.5px; line-height: 1.8; }
+.s2-preview-card.is-embedded { padding: 12px; background: #f8faf9; border-color: #ebeeee; }

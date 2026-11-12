@@ -5,7 +5,6 @@ import {
   COMPONENTS,
   COOKING_POSTS,
   COOKING_QUERY,
-  COOKING_REUSE_TARGET,
   DEMO_AS_OF_DATE,
   FIXED_SCOPE_CONFIG,
   POINT_CATALOG,
@@ -14,12 +13,13 @@ import {
   SKINCARE_SAMPLES,
   SKINCARE_TEMPLATE,
   STRATEGY_ITEMS,
+  USAGE_REUSE_TARGET,
 } from '../data'
 import { detectConflicts, getConfigVersion, renderAnswer, resolveConfig, reuseReport, runCoverageCheck } from './index'
 
 describe('mock data contracts', () => {
   it('keeps the agreed source and fixed sample counts, with independent fictional annotations', () => {
-    expect(SKINCARE_POSTS).toHaveLength(27)
+    expect(SKINCARE_POSTS).toHaveLength(28)
     expect(COOKING_POSTS).toHaveLength(15)
     expect(SKINCARE_SAMPLES).toHaveLength(8)
     expect(SKINCARE_SAMPLES.every((sample) => sample.expectedPoints.length > 0)).toBe(true)
@@ -127,6 +127,13 @@ describe('renderAnswer', () => {
     expect(run.results[0].sponsoredUnlabeledAfter).toBe(1)
     expect(run.results[0].delta).toBe('regressed')
   })
+
+  it('drops sponsored posts from the candidate pool when the commercial role disallows them', () => {
+    const noSponsored = { ...BASELINE_CONFIG, evidence: { ...BASELINE_CONFIG.evidence, allowSponsored: false } }
+    const answer = renderAnswer(noSponsored, SKINCARE_SAMPLES[0], SKINCARE_POSTS, COMPONENTS, POINT_CATALOG, DEMO_AS_OF_DATE)
+    expect(answer.sections.flatMap((section) => section.points).some((point) => point.evidenceIds.includes('skin-post-05'))).toBe(false)
+    expect(answer.filteredEvidence.find((entry) => entry.evidenceId === 'skin-post-05')?.ruleId).toBe('allow-sponsored')
+  })
 })
 
 describe('runCoverageCheck', () => {
@@ -138,7 +145,7 @@ describe('runCoverageCheck', () => {
     const regression = run.results.find((result) => result.sampleId === 'skin-q7')!
     expect(regression.delta).toBe('regressed')
     expect(regression.missedAfter).toContain('wait-film')
-    expect(regression.reason).toContain('等待防晒成膜')
+    expect(regression.reason).toContain('用法类')
     expect(regression.traceableRateAfter).toBe(1)
   })
 
@@ -172,7 +179,7 @@ describe('runCoverageCheck', () => {
 
 describe('reuseReport', () => {
   it('keeps the planned parameter chart visible but outside the reuse numerator and denominator', () => {
-    const report = reuseReport(SKINCARE_TEMPLATE, COOKING_REUSE_TARGET, COMPONENTS, CAPABILITIES)
+    const report = reuseReport(SKINCARE_TEMPLATE, USAGE_REUSE_TARGET, COMPONENTS, CAPABILITIES)
     expect(report.reusedAsIs.some((item) => item.id === 'source-footer')).toBe(true)
     expect(report.reusedAsIs.some((item) => item.id === 'step-list')).toBe(true)
     expect(report.reconfigured.some((item) => item.key === 'sampleSet')).toBe(true)

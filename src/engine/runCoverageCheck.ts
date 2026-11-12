@@ -92,18 +92,20 @@ function classify(
     || afterMetrics.sponsoredUnlabeled > beforeMetrics.sponsoredUnlabeled
     || (beforeMetrics.traceableRate !== null && afterMetrics.traceableRate !== null && afterMetrics.traceableRate < beforeMetrics.traceableRate)
   if (missedAfter > missedBefore || guardrailWorsened) return 'regressed'
-  if (afterCovered.length > beforeCovered.length) return 'improved'
+  const guardrailImproved = afterMetrics.staleCount < beforeMetrics.staleCount
+    || afterMetrics.sponsoredUnlabeled < beforeMetrics.sponsoredUnlabeled
+  if (afterCovered.length > beforeCovered.length || guardrailImproved) return 'improved'
   return 'same'
 }
 
 function getReason(delta: 'improved' | 'same' | 'regressed', answer: RenderedAnswer, missedAfter: string[], sample: Sample): string | undefined {
-  if (delta === 'improved') return '开启已有分组组件后，更多独立标注的场景要点获得了可追溯来源。'
-  if (delta === 'same') return '此样例的覆盖与引用护栏指标未发生变化。'
+  if (delta === 'improved') return '改动后答出了更多期望要点，或引用质量变好。'
+  if (delta === 'same') return '此样例覆盖的期望要点数没有变化，引用质量也没有变差。'
   if (missedAfter.length === 0) return '独立标注要点仍全部覆盖，但改动后引用了超出场景时效标准的内容或未标注的商业内容。'
   const omitted = answer.omittedPoints.find((point) => missedAfter.includes(point.pointKey))
   if (omitted) return omitted.reason
   const missingLabel = sample.expectedPoints.find((point) => missedAfter.includes(point.key))?.label
-  return missingLabel ? `改动后未覆盖独立标注要点“${missingLabel}”，需查看对应规则与来源。` : '策略改动使样例的覆盖或引用护栏指标恶化。'
+  return missingLabel ? `改动后未覆盖独立标注要点“${missingLabel}”，需查看对应规则与来源。` : '策略改动使样例的要点覆盖或引用质量变差。'
 }
 
 export function runCoverageCheck(

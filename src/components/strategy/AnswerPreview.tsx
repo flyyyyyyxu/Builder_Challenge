@@ -21,12 +21,14 @@ type Props = {
   mode: PreviewVersion
   onModeChange: (mode: PreviewVersion) => void
   onOpenSource: (point: AnswerPoint) => void
-  onNavigateCoverage: () => void
-  diffSummary: string
+  onNavigateCoverage?: () => void
+  diffSummary?: string
   isDraftModified: boolean
-  checkStatus: CheckStatus
+  checkStatus?: CheckStatus
   labelSponsored: boolean
   posts: Post[]
+  /** Embedded (regression page): only the before/after tabs and the card, without workspace captions or CTA. */
+  embedded?: boolean
 }
 
 export function markAnswerDiff(before: RenderedAnswer, after: RenderedAnswer) {
@@ -111,7 +113,7 @@ function AnswerSection({ section, onOpenSource, postsById, labelSponsored, highl
   )
 }
 
-export function AnswerPreview({ before, after, queryText, mode, onModeChange, onOpenSource, onNavigateCoverage, diffSummary, isDraftModified, checkStatus, labelSponsored, posts }: Props) {
+export function AnswerPreview({ before, after, queryText, mode, onModeChange, onOpenSource, onNavigateCoverage, diffSummary, isDraftModified, checkStatus, labelSponsored, posts, embedded = false }: Props) {
   const answer = mode === 'before' ? before : after
   const postsById = useMemo(() => new Map(posts.map((post) => [post.id, post])), [posts])
   const changedIds = useMemo(() => new Set(answer.sections.flatMap((section) => section.points.filter((point) => point.change !== 'unchanged').map((point) => point.id))), [answer])
@@ -124,18 +126,18 @@ export function AnswerPreview({ before, after, queryText, mode, onModeChange, on
   }, [changedIds])
 
   const hasPoints = answer.sections.some((section) => section.points.length > 0)
-  const stateLabel = mode === 'before' ? '不可变基线' : isDraftModified ? '草稿 · 实时预览' : '与基线一致'
+  const stateLabel = mode === 'before' ? '改动前 · 基线' : embedded ? '改动后 · 本次运行配置' : isDraftModified ? '草稿 · 实时预览' : '与基线一致'
 
   return (
-    <div className="s2-preview-card">
+    <div className={`s2-preview-card ${embedded ? 'is-embedded' : ''}`}>
       <div className="s2-preview-controls">
-        <div className="s2-preview-version-label">预览版本</div>
+        <div className="s2-preview-version-label">{embedded ? '答案卡预览' : '预览版本'}</div>
         <div className="s2-segmented-control" role="group" aria-label="切换改动前后预览">
           <button type="button" aria-pressed={mode === 'before'} className={mode === 'before' ? 'is-selected' : ''} onClick={() => onModeChange('before')}>改动前</button>
           <button type="button" aria-pressed={mode === 'after'} className={mode === 'after' ? 'is-selected' : ''} onClick={() => onModeChange('after')}>改动后</button>
         </div>
       </div>
-      <div className="s2-diff-summary" aria-live="polite"><span className="s2-diff-mark"><Sparkles size={13} /></span><span>{diffSummary}</span></div>
+      {!embedded && diffSummary && <div className="s2-diff-summary" aria-live="polite"><span className="s2-diff-mark"><Sparkles size={13} /></span><span>{diffSummary}</span></div>}
 
       <div className="s2-phone-frame">
         <div className="s2-phone-top"><span className="s2-phone-camera" /><span className="s2-phone-brand">小红书 <i>AI 搜</i></span><span className="s2-phone-search" /></div>
@@ -170,9 +172,8 @@ export function AnswerPreview({ before, after, queryText, mode, onModeChange, on
         </div>
       </div>
 
-      <div className="s2-preview-caption"><span>点击结论、分组或提醒可查看对应 mock 原文与规则 trace。</span><span>改动前固定基线 · 改动后实时调用本地引擎</span></div>
-      <button type="button" className="s2-go-coverage" onClick={onNavigateCoverage}>前往覆盖与回归 <ArrowRight size={14} /><span className={`s2-check-status is-${checkStatus.kind}${checkStatus.kind === 'current' && checkStatus.summary.regressed > 0 ? ' has-regression' : ''}`}>{checkStatusLabel(checkStatus)}</span></button>
-      <p className="s2-preview-disclaimer">预览只反映这一条问题，不等于 8 条样例的检查结论。</p>
+      <div className="s2-preview-caption"><span>点击答案中的要点，可查看引用的原帖。</span></div>
+      {!embedded && onNavigateCoverage && checkStatus && <button type="button" className="s2-go-coverage" onClick={onNavigateCoverage}>运行回归检查 <ArrowRight size={14} /><span className={`s2-check-status is-${checkStatus.kind}${checkStatus.kind === 'current' && checkStatus.summary.regressed > 0 ? ' has-regression' : ''}`}>{checkStatusLabel(checkStatus)}</span></button>}
     </div>
   )
 }

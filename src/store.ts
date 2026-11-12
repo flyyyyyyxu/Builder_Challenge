@@ -1,18 +1,26 @@
 import { create } from 'zustand'
 import { BASELINE_CONFIG } from './data/strategy-config'
-import type { AnswerPoint, CoverageRun, ReuseReport, Role, StrategyConfig, StrategyTab } from './types'
+import type { AnswerPoint, CoverageRun, ReuseReport, Role, StrategyConfig } from './types'
 
-export type PageId = 'home' | 'strategy' | 'coverage' | 'reuse'
+export type PageId = 'home' | 'template' | 'strategy' | 'coverage' | 'reuse' | 'feedback'
 export type PreviewVersion = 'before' | 'after'
 export type ReuseWizardStep = 1 | 2 | 3
 export const DEFAULT_TEMPLATE_ID = 'skincare-answer-template'
 
-/** Identities the demo can switch between; the commercial one only exists for the P1 conflict follow-up. */
-export type DemoRole = Extract<Role, 'industry_ops' | 'ads'>
+/** Account identities (permission isolation): every account can view all roles' settings but only edit its own. */
+export type DemoRole = Extract<Role, 'industry_ops' | 'ads' | 'community'>
 export const ROLE_LABELS: Record<DemoRole, string> = {
   industry_ops: '行业运营 · 护肤',
-  ads: '商业化（示例）',
+  ads: '商业化',
+  community: '社区治理',
 }
+/** Short names used on the role tabs inside the template and strategy pages. */
+export const ROLE_TAB_LABELS: Record<DemoRole, string> = {
+  industry_ops: '行业运营',
+  ads: '商业化',
+  community: '社区治理',
+}
+export const DEMO_ROLES: DemoRole[] = ['industry_ops', 'ads', 'community']
 
 function cloneBaseline(): StrategyConfig {
   return {
@@ -32,7 +40,10 @@ type DemoStore = {
   sponsoredProposal: 'beforeConclusion' | null
   conflictNotified: boolean
   activePage: PageId
-  activeStrategyTab: StrategyTab
+  /** Workspace pages the presenter has opened; a step counts as done once it has been reviewed. */
+  visitedPages: PageId[]
+  /** Which role's slots/rules are being viewed on the template and strategy pages. */
+  viewedRole: DemoRole
   draftConfig: StrategyConfig
   previewVersion: PreviewVersion
   sourcePoint: AnswerPoint | null
@@ -46,7 +57,7 @@ type DemoStore = {
   withdrawSponsoredProposal: () => void
   notifyConflictOwner: () => void
   navigate: (page: PageId) => void
-  setStrategyTab: (tab: StrategyTab) => void
+  setViewedRole: (role: DemoRole) => void
   setDraftConfig: (config: StrategyConfig) => void
   setPreviewVersion: (version: PreviewVersion) => void
   openSource: (point: AnswerPoint) => void
@@ -65,7 +76,8 @@ export const useDemoStore = create<DemoStore>((set) => ({
   sponsoredProposal: null,
   conflictNotified: false,
   activePage: 'home',
-  activeStrategyTab: 'evidence',
+  visitedPages: [],
+  viewedRole: 'industry_ops',
   draftConfig: cloneBaseline(),
   previewVersion: 'after',
   sourcePoint: null,
@@ -74,14 +86,12 @@ export const useDemoStore = create<DemoStore>((set) => ({
   reuseWizardStep: 1,
   selectedTemplateId: DEFAULT_TEMPLATE_ID,
   reuseReport: null,
-  setRole: (role) => set(role === 'ads'
-    ? { role, activePage: 'strategy', activeStrategyTab: 'guardrail', sourcePoint: null }
-    : { role }),
+  setRole: (role) => set({ role, viewedRole: role }),
   proposeSponsoredBeforeConclusion: () => set({ sponsoredProposal: 'beforeConclusion', conflictNotified: false }),
   withdrawSponsoredProposal: () => set({ sponsoredProposal: null, conflictNotified: false }),
   notifyConflictOwner: () => set({ conflictNotified: true }),
-  navigate: (activePage) => set({ activePage }),
-  setStrategyTab: (activeStrategyTab) => set({ activeStrategyTab }),
+  navigate: (activePage) => set((state) => ({ activePage, visitedPages: state.visitedPages.includes(activePage) ? state.visitedPages : [...state.visitedPages, activePage] })),
+  setViewedRole: (viewedRole) => set({ viewedRole }),
   setDraftConfig: (draftConfig) => set({ draftConfig }),
   setPreviewVersion: (previewVersion) => set({ previewVersion }),
   openSource: (sourcePoint) => set({ sourcePoint }),
@@ -97,11 +107,12 @@ export const useDemoStore = create<DemoStore>((set) => ({
     sponsoredProposal: null,
     conflictNotified: false,
     activePage: 'home',
-    activeStrategyTab: 'evidence',
+    visitedPages: [],
+    viewedRole: 'industry_ops',
     draftConfig: cloneBaseline(),
     previewVersion: 'after',
     sourcePoint: null,
-      coverageRun: null,
+    coverageRun: null,
     selectedSampleId: null,
     reuseWizardStep: 1,
     selectedTemplateId: DEFAULT_TEMPLATE_ID,

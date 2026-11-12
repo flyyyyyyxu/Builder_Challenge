@@ -20,6 +20,15 @@ export const SCENES: Scene[] = [
     templateId: 'skincare-answer-template',
   },
   {
+    id: 'skincare-usage',
+    vertical: '护肤',
+    intent: '怎么使用',
+    sampleQuery: '防晒和粉底的先后顺序',
+    queryId: 'skin-q7',
+    category: '用法类',
+    templateId: 'skincare-answer-template',
+  },
+  {
     id: 'home-cooking-steps',
     vertical: '家常菜',
     intent: '做法步骤',

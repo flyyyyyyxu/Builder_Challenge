@@ -1,6 +1,6 @@
 export type Role = 'dots_pm' | 'industry_ops' | 'ads' | 'community'
 export type StrategyTab = 'evidence' | 'presentation' | 'guardrail'
-export type SceneId = 'skincare-shopping' | 'home-cooking-steps'
+export type SceneId = 'skincare-shopping' | 'skincare-usage' | 'home-cooking-steps'
 export type QueryCategory = '选购类' | '用法类' | '做法类' | '踩坑类'
 export type ContentKind = 'note' | 'comment'
 export type Stance = '推荐' | '不推荐' | '踩坑' | '中立'
@@ -45,6 +45,7 @@ export type ConfigPath =
   | 'evidence.freshnessDays'
   | 'evidence.includeCounterEvidence'
   | 'evidence.labelSponsored'
+  | 'evidence.allowSponsored'
   | 'presentation.groupByPersona'
   | 'presentation.groupByPersonaAppliesTo'
   | 'presentation.showPitfall'
@@ -60,6 +61,8 @@ export interface StrategyConfig {
     freshnessDays: FreshnessDays
     includeCounterEvidence: boolean
     labelSponsored: boolean
+    /** Commercial-owned: whether partner (sponsored) posts may enter the candidate pool at all. */
+    allowSponsored: boolean
   }
   presentation: {
     groupByPersona: boolean

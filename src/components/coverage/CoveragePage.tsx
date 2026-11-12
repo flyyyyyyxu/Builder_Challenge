@@ -1,49 +1,30 @@
 import { useMemo, useState } from 'react'
-import { ArrowRight, Check, CircleAlert, CircleCheck, ClipboardCheck, RefreshCw, ShieldAlert, Sparkles } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, CircleAlert, CircleCheck, ClipboardCheck, RefreshCw, X } from 'lucide-react'
 import { BASELINE_CONFIG } from '../../data/strategy-config'
-import { COMPONENTS, DEMO_AS_OF_DATE, POINT_CATALOG, SKINCARE_POSTS, SKINCARE_SAMPLES, STALE_REFERENCE_DAYS } from '../../data'
+import { COMPONENTS, DEMO_AS_OF_DATE, POINT_CATALOG, REGRESSION_DEMO_CONFIG, SKINCARE_POSTS, SKINCARE_SAMPLES, STALE_REFERENCE_DAYS } from '../../data'
 import { getConfigVersion, runCoverageCheck } from '../../engine'
-import { useDemoStore } from '../../store'
-import type { CoverageRun, RenderedAnswer, Sample, SampleResult, StrategyConfig } from '../../types'
+import { useDemoStore, type PreviewVersion } from '../../store'
+import { AnswerPreview } from '../strategy/AnswerPreview'
+import { EvidenceDrawer } from '../strategy/EvidenceDrawer'
+import type { AnswerPoint, CoverageRun, QueryCategory, Sample, SampleResult, StrategyConfig } from '../../types'
 import './coverage.css'
 
 const REGRESSION_SAMPLE_ID = 'skin-q7'
 const RESTORED_POINT_KEY = 'wait-film'
 
-type RunNotice = { tone: 'success' | 'info' | 'warning'; text: string }
-
-function formatRate(rate: number | null): string {
-  return rate === null ? '无引用' : `${Math.round(rate * 100)}%`
+const DELTA_LABELS: Record<SampleResult['delta'], string> = { improved: '提升', same: '持平', regressed: '回归' }
+const DELTA_RULES: Record<SampleResult['delta'], string> = {
+  improved: '答出的期望要点比基线多，或引用质量变好，且没有变差的地方',
+  same: '答出的期望要点数量不变，引用质量也没有变差',
+  regressed: '漏掉了基线能答出的期望要点，或引用质量变差',
+}
+const CATEGORY_HINTS: Partial<Record<QueryCategory, string>> = {
+  选购类: '本场景的主体问题，覆盖不同肤质和使用场景',
+  用法类: '边界样例：检查规则会不会误伤非选购问题',
 }
 
-function formatScope(categories: string[]): string {
-  return categories.length > 0 ? categories.join('、') : '未选择类别'
-}
-
-function deltaLabel(delta: SampleResult['delta']): string {
-  if (delta === 'improved') return '提升'
-  if (delta === 'regressed') return '回归'
-  return '持平'
-}
-
-function getAggregateMetrics(run: CoverageRun) {
-  const expectedTotal = run.results.reduce((sum, result) => sum + result.expectedPointKeys.length, 0)
-  const coveredBefore = run.results.reduce((sum, result) => sum + result.coveredBefore.length, 0)
-  const coveredAfter = run.results.reduce((sum, result) => sum + result.coveredAfter.length, 0)
-  const beforeRates = run.results.flatMap((result) => result.traceableRateBefore === null ? [] : [result.traceableRateBefore])
-  const afterRates = run.results.flatMap((result) => result.traceableRateAfter === null ? [] : [result.traceableRateAfter])
-  const average = (rates: number[]) => rates.length ? rates.reduce((sum, rate) => sum + rate, 0) / rates.length : null
-  return {
-    expectedTotal,
-    coveredBefore,
-    coveredAfter,
-    traceableBefore: average(beforeRates),
-    traceableAfter: average(afterRates),
-    staleBefore: run.results.reduce((sum, result) => sum + result.staleCountBefore, 0),
-    staleAfter: run.results.reduce((sum, result) => sum + result.staleCountAfter, 0),
-    sponsoredBefore: run.results.reduce((sum, result) => sum + result.sponsoredUnlabeledBefore, 0),
-    sponsoredAfter: run.results.reduce((sum, result) => sum + result.sponsoredUnlabeledAfter, 0),
-  }
+function citationIssues(run: CoverageRun, side: 'Before' | 'After'): number {
+  return run.results.reduce((sum, result) => sum + result[`staleCount${side}`] + result[`sponsoredUnlabeled${side}`], 0)
 }
 
 function CoveragePage() {
@@ -54,173 +35,122 @@ function CoveragePage() {
   const setCoverageRun = useDemoStore((state) => state.setCoverageRun)
   const setSelectedSampleId = useDemoStore((state) => state.setSelectedSampleId)
   const navigate = useDemoStore((state) => state.navigate)
-  const [runNotice, setRunNotice] = useState<RunNotice | null>(null)
+  const [recovered, setRecovered] = useState(false)
 
   const currentConfigVersion = useMemo(() => getConfigVersion(draftConfig), [draftConfig])
+  const draftModified = JSON.stringify(draftConfig) !== JSON.stringify(BASELINE_CONFIG)
   const isStale = coverageRun !== null && coverageRun.configVersion !== currentConfigVersion
-  const aggregate = useMemo(() => coverageRun ? getAggregateMetrics(coverageRun) : null, [coverageRun])
   const selectedResult = coverageRun?.results.find((result) => result.sampleId === selectedSampleId)
     ?? coverageRun?.results.find((result) => result.delta === 'regressed')
     ?? coverageRun?.results[0]
   const selectedSample = selectedResult ? SKINCARE_SAMPLES.find((sample) => sample.id === selectedResult.sampleId) ?? null : null
-  const previousScope = coverageRun?.configSnapshot.presentation.groupByPersonaAppliesTo ?? []
-  const isAlreadyNarrowed = draftConfig.presentation.groupByPersona
-    && draftConfig.presentation.groupByPersonaAppliesTo.length === 1
-    && draftConfig.presentation.groupByPersonaAppliesTo[0] === '选购类'
 
   function executeRun(config: StrategyConfig, previousRun: CoverageRun | null, preferredSampleId?: string | null) {
-    const nextRun = runCoverageCheck(
-      BASELINE_CONFIG,
-      config,
-      SKINCARE_SAMPLES,
-      SKINCARE_POSTS,
-      COMPONENTS,
-      POINT_CATALOG,
-      DEMO_AS_OF_DATE,
-    )
-    const nextRegressionCount = nextRun.summary.regressed
+    const nextRun = runCoverageCheck(BASELINE_CONFIG, config, SKINCARE_SAMPLES, SKINCARE_POSTS, COMPONENTS, POINT_CATALOG, DEMO_AS_OF_DATE)
     const preferred = preferredSampleId && nextRun.results.some((result) => result.sampleId === preferredSampleId)
       ? preferredSampleId
       : nextRun.results.find((result) => result.delta === 'regressed')?.sampleId ?? nextRun.results[0]?.sampleId ?? null
+    const prior = previousRun?.results.find((result) => result.sampleId === REGRESSION_SAMPLE_ID)
+    const next = nextRun.results.find((result) => result.sampleId === REGRESSION_SAMPLE_ID)
+    setRecovered(Boolean(prior?.missedAfter.includes(RESTORED_POINT_KEY) && next && !next.missedAfter.includes(RESTORED_POINT_KEY)))
     setCoverageRun(nextRun)
     setSelectedSampleId(preferred)
-
-    const priorTarget = previousRun?.results.find((result) => result.sampleId === REGRESSION_SAMPLE_ID)
-    const nextTarget = nextRun.results.find((result) => result.sampleId === REGRESSION_SAMPLE_ID)
-    const restored = priorTarget?.missedAfter.includes(RESTORED_POINT_KEY)
-      && Boolean(nextTarget && !nextTarget.missedAfter.includes(RESTORED_POINT_KEY))
-
-    if (restored && priorTarget && nextTarget) {
-      const expectedCount = nextTarget.expectedPointKeys.length
-      setRunNotice({
-        tone: 'success',
-        text: `已按当前草稿重新运行：目标样例的“等待成膜”已恢复；改动后覆盖 ${priorTarget.coveredAfter.length}/${expectedCount} → ${nextTarget.coveredAfter.length}/${expectedCount}。回归数 ${previousRun?.summary.regressed ?? 0} → ${nextRegressionCount}。`,
-      })
-    } else if (nextRegressionCount > 0) {
-      setRunNotice({ tone: 'warning', text: `运行完成：当前草稿在固定样例中发现 ${nextRegressionCount} 条回归。请选择回归样例查看漏项和触发规则。` })
-    } else {
-      setRunNotice({ tone: 'success', text: previousRun ? '重跑完成：当前样例集未发现回归。结果来自本次实际计算。' : '运行完成：结果已按当前草稿计算，可逐条查看独立标注和引用指标。' })
-    }
   }
 
-  function handleRun() {
-    executeRun(draftConfig, coverageRun, selectedSampleId)
+  const handleRun = () => executeRun(draftConfig, coverageRun, selectedSampleId)
+
+  /** No edits yet: apply the demo main-line change (行业运营 turns on grouping + pitfall) to the draft, then run. */
+  function handleRunWithDemoChange() {
+    const demoConfig: StrategyConfig = {
+      ...draftConfig,
+      presentation: {
+        ...draftConfig.presentation,
+        groupByPersona: REGRESSION_DEMO_CONFIG.presentation.groupByPersona,
+        groupByPersonaAppliesTo: [...REGRESSION_DEMO_CONFIG.presentation.groupByPersonaAppliesTo],
+        showPitfall: REGRESSION_DEMO_CONFIG.presentation.showPitfall,
+      },
+    }
+    setDraftConfig(demoConfig)
+    executeRun(demoConfig, null, null)
   }
 
   function handleNarrowAndRerun() {
     const nextConfig: StrategyConfig = {
       ...draftConfig,
-      presentation: {
-        ...draftConfig.presentation,
-        groupByPersona: true,
-        groupByPersonaAppliesTo: ['选购类'],
-      },
+      presentation: { ...draftConfig.presentation, groupByPersona: true, groupByPersonaAppliesTo: ['选购类'] },
     }
     setDraftConfig(nextConfig)
     executeRun(nextConfig, coverageRun, selectedResult?.sampleId ?? REGRESSION_SAMPLE_ID)
   }
 
-  function handleSelect(sample: Sample) {
-    setSelectedSampleId(sample.id)
-  }
+  const backButtons = (
+    <>
+      <button type="button" className="cv-button cv-button-quiet" onClick={() => navigate('template')}><ArrowLeft size={14} />返回卡片模板</button>
+      <button type="button" className="cv-button cv-button-quiet" onClick={() => navigate('strategy')}><ArrowLeft size={14} />返回筛选策略</button>
+    </>
+  )
 
   return (
     <section className="coverage-page" aria-labelledby="workspace-page-title">
-      <div className="coverage-page-intro">
-        <div>
-          <p>运行 8 条独立标注的护肤固定样例，查看当前草稿对要点覆盖与引用护栏的影响。</p>
-        </div>
-        <div className="coverage-intro-badges">
-          <span className="coverage-pill coverage-pill-outline">数据基准 {DEMO_AS_OF_DATE}</span>
-        </div>
-      </div>
-
-      <div className="coverage-disclaimer" role="note">
-        <ShieldAlert size={17} />
-        <span>用于检查策略改动对固定样例的影响，不代表语义判断准确率。样例集由场景负责人维护并独立标注期望要点，改动人不能单独判定通过；具体责任人待与业务确认。</span>
-      </div>
+      <p className="cv-lead" title={`数据基准 ${DEMO_AS_OF_DATE}`}>分别用基线和当前草稿回答 8 个固定问题，对照期望要点和引用质量，判定每个问题是提升、持平还是回归。</p>
 
       {coverageRun && isStale && (
-        <div className="coverage-stale-banner" role="status">
-          <CircleAlert size={18} />
-          <div><strong>当前草稿已变化，下面仍是旧运行结果</strong><span>上次配置 {coverageRun.configVersion} · 当前草稿 {currentConfigVersion}。结果未被静默替换，请按当前草稿重跑后再判断。</span></div>
-          <button type="button" className="coverage-button coverage-button-primary" onClick={handleRun}><RefreshCw size={15} />按当前草稿重跑 8 条</button>
-        </div>
-      )}
-
-      {runNotice && (
-        <div className={`coverage-run-notice is-${runNotice.tone}`} role="status">
-          {runNotice.tone === 'success' ? <CircleCheck size={17} /> : runNotice.tone === 'warning' ? <CircleAlert size={17} /> : <Sparkles size={17} />}
-          <span>{runNotice.text}</span>
+        <div className="cv-stale" role="status">
+          <CircleAlert size={17} />
+          <span>草稿在上次检查后又改过，下面是旧结果。</span>
+          <button type="button" className="cv-button cv-button-primary" onClick={handleRun}><RefreshCw size={14} />按当前草稿重跑</button>
         </div>
       )}
 
       {!coverageRun ? (
-        <div className="coverage-empty panel">
-          <div className="coverage-empty-icon"><ClipboardCheck size={24} /></div>
-          <div className="coverage-empty-copy">
-            <h2>样例尚未按当前草稿运行</h2>
-            <p>{draftConfig.presentation.groupByPersona
-              ? '当前草稿已启用按肤质分组。运行后将逐条计算提升、持平或回归，并记录本次配置版本。'
-              : '可以直接运行作为当前基线；若要复现演示回归，先返回策略配置，在“答案呈现”中开启按肤质分组。'}</p>
-          </div>
-          <div className="coverage-empty-actions">
-            <button type="button" className="coverage-button coverage-button-primary" onClick={handleRun}><ClipboardCheck size={16} />运行 8 条样例</button>
-            <button type="button" className="coverage-button coverage-button-quiet" onClick={() => navigate('strategy')}>返回策略配置 <ArrowRight size={15} /></button>
+        <div className="cv-empty panel">
+          <div className="cv-empty-icon"><ClipboardCheck size={22} /></div>
+          {draftModified ? (
+            <div className="cv-empty-copy"><h2>草稿已改动，可以开始检查</h2><p>8 个固定问题会分别用基线和当前草稿各回答一次。</p></div>
+          ) : (
+            <div className="cv-empty-copy"><h2>当前草稿与基线一致</h2><p>可以载入演示改动：行业运营在卡片模板里开启「按肤质分组」和「踩坑提醒」，再运行检查。</p></div>
+          )}
+          <div className="cv-empty-actions">
+            {draftModified
+              ? <button type="button" className="cv-button cv-button-primary" onClick={handleRun}><ClipboardCheck size={15} />运行 8 个样例</button>
+              : <><button type="button" className="cv-button cv-button-quiet" onClick={() => navigate('template')}><ArrowLeft size={14} />自己去改</button><button type="button" className="cv-button cv-button-primary" onClick={handleRunWithDemoChange}><ClipboardCheck size={15} />载入演示改动并运行</button></>}
           </div>
         </div>
       ) : (
         <>
-          <section className="coverage-run-heading">
-            <div><h2>最近一次运行结果</h2><p>配置版本 <code>{coverageRun.configVersion}</code> · 样例期望要点与规则输出分开维护</p></div>
-            {!isStale && <button type="button" className="coverage-button coverage-button-quiet" onClick={handleRun}><RefreshCw size={15} />重新运行</button>}
-          </section>
+          <CoverageSummary run={coverageRun} onRun={handleRun} isStale={isStale} />
 
-          {aggregate && <CoverageMetrics run={coverageRun} aggregate={aggregate} />}
-
-          <div className="coverage-results-grid">
-            <section className="coverage-sample-list panel" aria-labelledby="sample-list-title">
-              <div className="coverage-panel-heading"><div><h3 id="sample-list-title">护肤样例 · {coverageRun.results.length} 条</h3></div><span className="coverage-count-badge">独立标注</span></div>
-              <div className="coverage-sample-list-body">
-                {SKINCARE_SAMPLES.map((sample) => {
-                  const result = coverageRun.results.find((item) => item.sampleId === sample.id)
-                  if (!result) return null
-                  const selected = selectedResult?.sampleId === sample.id
-                  return <button type="button" key={sample.id} className={`coverage-sample-row ${selected ? 'is-selected' : ''}`} onClick={() => handleSelect(sample)} aria-pressed={selected}>
-                    <span className={`coverage-delta-mark is-${result.delta}`} aria-hidden="true">{result.delta === 'improved' ? <ArrowRight size={14} /> : result.delta === 'regressed' ? <CircleAlert size={14} /> : <span>—</span>}</span>
-                    <span className="coverage-sample-copy"><strong>{sample.text}</strong><small>{sample.category} · 覆盖 {result.coveredBefore.length}/{result.expectedPointKeys.length} → {result.coveredAfter.length}/{result.expectedPointKeys.length}</small></span>
-                    <span className={`coverage-delta-label is-${result.delta}`}>{deltaLabel(result.delta)}</span>
-                  </button>
-                })}
-              </div>
-              <div className="coverage-list-foot">点击样例查看期望要点、前后输出及对应规则。</div>
-            </section>
+          <div className="cv-results">
+            <SampleList run={coverageRun} selectedId={selectedResult?.sampleId} onSelect={(sample) => setSelectedSampleId(sample.id)} />
 
             {selectedResult && selectedSample ? (
               <CoverageDetail
                 sample={selectedSample}
                 result={selectedResult}
-                run={coverageRun}
+                runSnapshot={coverageRun.configSnapshot}
                 currentDraft={draftConfig}
+                previousScope={coverageRun.configSnapshot.presentation.groupByPersonaAppliesTo}
+                isStale={isStale}
+                recovered={recovered}
+                hasRegression={coverageRun.summary.regressed > 0}
                 onNarrowAndRerun={handleNarrowAndRerun}
                 onRun={handleRun}
+                backButtons={backButtons}
                 onContinue={() => navigate('reuse')}
-                isStale={isStale}
-                previousScope={previousScope}
-                isAlreadyNarrowed={isAlreadyNarrowed}
-                recoveryConfirmed={Boolean(runNotice?.text.includes('“等待成膜”已恢复'))}
               />
             ) : (
-              <div className="coverage-detail-empty panel"><CircleAlert size={19} />运行结果中没有找到对应样例，请重置演示后重新运行。</div>
+              <div className="cv-detail panel">运行结果中没有找到对应样例，请重置演示后重新运行。</div>
             )}
           </div>
 
-          <details className="coverage-maintenance panel">
-            <summary>指标口径与判断边界</summary>
-            <div className="coverage-maintenance-body">
-              <p>样例由场景负责人维护，改动人不应单独判定通过；线上问题可以补入样例集，具体责任人待业务确认。本页面只模拟固定 mock 样例，不判断原帖真实性、语义质量或上线收益。</p>
-              <p>覆盖按“有独立期望要点且至少关联一条可追溯引用”计算；陈旧引用对照固定的场景时效标准（示例 {STALE_REFERENCE_DAYS} 天），不随草稿里的时效窗口变化，放宽窗口时会被检出；未标注商业内容逐样例汇总。</p>
-            </div>
+          <details className="cv-notes panel">
+            <summary>指标口径与样例说明</summary>
+            <ul>
+              <li><strong>样例怎么选：</strong>由场景负责人维护，来源是高频问题、典型人群、边界问题和线上投诉回流；期望要点独立标注，改动人不能自己判定通过。</li>
+              <li><strong>期望要点覆盖：</strong>答案里出现该要点，并且至少有一条可追溯的引用。</li>
+              <li><strong>引用问题：</strong>引用了超过 {STALE_REFERENCE_DAYS} 天的帖子（场景时效标准，不随草稿的时效窗口变化），或引用了未标注的合作内容。</li>
+              <li><strong>边界：</strong>本页是规则模拟，只检查固定 mock 样例，不代表语义判断准确率、原帖真实性或上线收益。</li>
+            </ul>
           </details>
         </>
       )}
@@ -228,138 +158,167 @@ function CoveragePage() {
   )
 }
 
-function CoverageMetrics({ run, aggregate }: { run: CoverageRun; aggregate: ReturnType<typeof getAggregateMetrics> }) {
-  const beforeCoverage = aggregate.expectedTotal ? `${aggregate.coveredBefore}/${aggregate.expectedTotal}` : '—'
-  const afterCoverage = aggregate.expectedTotal ? `${aggregate.coveredAfter}/${aggregate.expectedTotal}` : '—'
+function CoverageSummary({ run, onRun, isStale }: { run: CoverageRun; onRun: () => void; isStale: boolean }) {
+  const expected = run.results.reduce((sum, result) => sum + result.expectedPointKeys.length, 0)
+  const coveredBefore = run.results.reduce((sum, result) => sum + result.coveredBefore.length, 0)
+  const coveredAfter = run.results.reduce((sum, result) => sum + result.coveredAfter.length, 0)
   return (
-    <div className="coverage-metrics-grid" aria-label="总体检查指标">
-      <MetricCard label="独立要点覆盖" before={beforeCoverage} after={afterCoverage} helper="覆盖 / 期望要点总数" />
-      <MetricCard label="引用可追溯率" before={formatRate(aggregate.traceableBefore)} after={formatRate(aggregate.traceableAfter)} helper="非空样例等权平均" />
-      <MetricCard label="陈旧引用" before={String(aggregate.staleBefore)} after={String(aggregate.staleAfter)} helper={`引用发布超过 ${STALE_REFERENCE_DAYS} 天（场景时效标准）`} />
-      <MetricCard label="商业内容未标注" before={String(aggregate.sponsoredBefore)} after={String(aggregate.sponsoredAfter)} helper="逐样例合计" />
-      <div className="coverage-delta-summary">
-        <span className="section-kicker">本次变化 · {run.results.length} 条样例</span>
-        <div><strong className="is-improved">{run.summary.improved} 提升</strong><strong className="is-same">{run.summary.same} 持平</strong><strong className="is-regressed">{run.summary.regressed} 回归</strong></div>
-        <small>分类由本次规则引擎计算，不是静态指标。</small>
+    <section className="cv-summary panel" aria-label="检查结论" title={`运行配置 ${run.configVersion}`}>
+      <div className="cv-verdict">
+        {(['improved', 'same', 'regressed'] as const).map((delta) => (
+          <span key={delta} className={`cv-verdict-item is-${delta}`} title={DELTA_RULES[delta]}><strong>{run.summary[delta]}</strong>{DELTA_LABELS[delta]}</span>
+        ))}
       </div>
-    </div>
+      <div className="cv-stat"><span>期望要点覆盖</span><strong>{coveredBefore}/{expected} <i>→</i> {coveredAfter}/{expected}</strong></div>
+      <div className="cv-stat" title={`超过 ${STALE_REFERENCE_DAYS} 天的引用 + 未标注的合作内容`}><span>引用问题</span><strong>{citationIssues(run, 'Before')} <i>→</i> {citationIssues(run, 'After')}</strong></div>
+      {!isStale && <button type="button" className="cv-button cv-button-quiet" onClick={onRun}><RefreshCw size={14} />重新运行</button>}
+    </section>
   )
 }
 
-function MetricCard({ label, before, after, helper }: { label: string; before: string; after: string; helper: string }) {
-  return <div className="coverage-metric-card"><span>{label}</span><strong>{before} <i>→</i> {after}</strong><small>{helper}</small></div>
+function SampleList({ run, selectedId, onSelect }: { run: CoverageRun; selectedId?: string; onSelect: (sample: Sample) => void }) {
+  const categories = [...new Set(SKINCARE_SAMPLES.map((sample) => sample.category))]
+  return (
+    <section className="cv-list panel" aria-label="样例列表">
+      {categories.map((category) => {
+        const samples = SKINCARE_SAMPLES.filter((sample) => sample.category === category)
+        return (
+          <div key={category} className="cv-list-group">
+            <div className="cv-list-heading" title={CATEGORY_HINTS[category]}>{category} · {samples.length}</div>
+            {samples.map((sample) => {
+              const result = run.results.find((item) => item.sampleId === sample.id)
+              if (!result) return null
+              const total = result.expectedPointKeys.length
+              return (
+                <button type="button" key={sample.id} className={`cv-row ${selectedId === sample.id ? 'is-selected' : ''}`} onClick={() => onSelect(sample)} aria-pressed={selectedId === sample.id}>
+                  <span className="cv-row-text"><strong>{sample.text}</strong><small>覆盖 {result.coveredBefore.length}/{total} → {result.coveredAfter.length}/{total}</small></span>
+                  <span className={`cv-chip is-${result.delta}`} title={DELTA_RULES[result.delta]}>{DELTA_LABELS[result.delta]}</span>
+                </button>
+              )
+            })}
+          </div>
+        )
+      })}
+    </section>
+  )
 }
 
-function CoverageDetail({
-  sample,
-  result,
-  run,
-  currentDraft,
-  onNarrowAndRerun,
-  onRun,
-  onContinue,
-  isStale,
-  previousScope,
-  isAlreadyNarrowed,
-  recoveryConfirmed,
-}: {
+function CoverageDetail({ sample, result, runSnapshot, currentDraft, previousScope, isStale, recovered, hasRegression, onNarrowAndRerun, onRun, backButtons, onContinue }: {
   sample: Sample
   result: SampleResult
-  run: CoverageRun
+  runSnapshot: StrategyConfig
   currentDraft: StrategyConfig
+  previousScope: QueryCategory[]
+  isStale: boolean
+  recovered: boolean
+  hasRegression: boolean
   onNarrowAndRerun: () => void
   onRun: () => void
+  backButtons: React.ReactNode
   onContinue: () => void
-  isStale: boolean
-  previousScope: string[]
-  isAlreadyNarrowed: boolean
-  recoveryConfirmed: boolean
 }) {
+  const [previewMode, setPreviewMode] = useState<PreviewVersion>('after')
+  const [sourcePoint, setSourcePoint] = useState<AnswerPoint | null>(null)
   const coveredBefore = new Set(result.coveredBefore)
   const coveredAfter = new Set(result.coveredAfter)
-  const regressionPoint = sample.expectedPoints.find((point) => result.missedAfter.includes(point.key))
-  const fixableRegression = result.sampleId === REGRESSION_SAMPLE_ID && result.delta === 'regressed' && Boolean(regressionPoint)
-  const resolvedRegression = recoveryConfirmed && result.sampleId === REGRESSION_SAMPLE_ID && !result.missedAfter.includes(RESTORED_POINT_KEY) && !isStale
-  const scopeBefore = formatScope(previousScope)
-  const scopeNow = formatScope(currentDraft.presentation.groupByPersonaAppliesTo)
+  const labelOf = (key: string) => sample.expectedPoints.find((point) => point.key === key)?.label ?? key
+  const lost = result.coveredBefore.filter((key) => !coveredAfter.has(key))
+  const gained = result.coveredAfter.filter((key) => !coveredBefore.has(key))
+  const fixable = result.sampleId === REGRESSION_SAMPLE_ID && result.delta === 'regressed' && lost.includes(RESTORED_POINT_KEY)
+  const alreadyNarrowed = currentDraft.presentation.groupByPersona
+    && currentDraft.presentation.groupByPersonaAppliesTo.length === 1
+    && currentDraft.presentation.groupByPersonaAppliesTo[0] === '选购类'
+  const resolved = recovered && result.sampleId === REGRESSION_SAMPLE_ID && !result.missedAfter.includes(RESTORED_POINT_KEY) && !isStale
+
+  const qualityLines: Array<{ tone: 'bad' | 'good'; label: string; text: string }> = []
+  const staleDiff = result.staleCountAfter - result.staleCountBefore
+  const unlabeledDiff = result.sponsoredUnlabeledAfter - result.sponsoredUnlabeledBefore
+  if (staleDiff > 0) qualityLines.push({ tone: 'bad', label: '引用质量下降', text: `新增 ${staleDiff} 条超过 ${STALE_REFERENCE_DAYS} 天的引用。` })
+  if (staleDiff < 0) qualityLines.push({ tone: 'good', label: '引用质量提升', text: `减少 ${-staleDiff} 条超过 ${STALE_REFERENCE_DAYS} 天的引用。` })
+  if (unlabeledDiff > 0) qualityLines.push({ tone: 'bad', label: '引用质量下降', text: `新增 ${unlabeledDiff} 条未标注的合作内容。` })
+  if (unlabeledDiff < 0) qualityLines.push({ tone: 'good', label: '引用质量提升', text: `未标注的合作内容减少 ${-unlabeledDiff} 条。` })
+  const selectedAnswer = previewMode === 'before' ? result.before : result.after
 
   return (
-    <article className="coverage-detail-panel panel" aria-labelledby="coverage-detail-title">
-      <div className="coverage-detail-topline"><div><span className={`coverage-delta-label is-${result.delta}`}>{deltaLabel(result.delta)}</span></div><span className="coverage-config-chip">运行配置 {run.configVersion}</span></div>
-      <h3 id="coverage-detail-title">{sample.text}</h3>
+    <article className="cv-detail panel" aria-labelledby="cv-detail-title">
+      <header className="cv-detail-head">
+        <h3 id="cv-detail-title">{sample.text}</h3>
+        <span className="cv-chip is-neutral">{sample.category}</span>
+        <span className={`cv-chip is-${result.delta}`} title={DELTA_RULES[result.delta]}>{DELTA_LABELS[result.delta]}</span>
+      </header>
 
-      <section className="coverage-detail-block">
-        <div className="coverage-detail-step"><span>01</span><h4>问题与期望要点</h4></div>
-        <div className="coverage-query-meta"><span className="coverage-category-chip">{sample.category}</span><span>期望要点由 {sample.annotatedBy} 维护</span></div>
-        <div className="coverage-expected-list">
-          {sample.expectedPoints.map((point) => {
-            const before = coveredBefore.has(point.key)
-            const after = coveredAfter.has(point.key)
-            return <div className="coverage-expected-row" key={point.key}><span className="coverage-expected-label">{point.label}</span><span className={`coverage-side-status ${before ? 'is-covered' : 'is-missing'}`}>前 {before ? '已覆盖' : '缺失'}</span><span className={`coverage-side-status ${after ? 'is-covered' : 'is-missing'}`}>后 {after ? '已覆盖' : '缺失'}</span></div>
-          })}
+      <div className="cv-detail-body">
+        <div className="cv-analysis">
+          <section className="cv-block">
+            <h4><span className="cv-step">01</span><span title="期望要点由场景负责人独立标注，和答案输出分开维护">问题与期望要点</span></h4>
+            <div className="cv-expected">
+              <div className="cv-expected-head"><span /><span>改动前</span><span>改动后</span></div>
+              {sample.expectedPoints.map((point) => (
+                <div className="cv-expected-row" key={point.key}>
+                  <span>{point.label}</span>
+                  <Mark ok={coveredBefore.has(point.key)} />
+                  <Mark ok={coveredAfter.has(point.key)} />
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className={`cv-block cv-why is-${result.delta}`}>
+            <h4><span className="cv-step">02</span>{result.delta === 'regressed' ? '回归原因' : '变化解释'}</h4>
+            {lost.map((key) => {
+              const omitted = result.after.omittedPoints.find((point) => point.pointKey === key)
+              // If no template rule dropped the point, its supporting posts were filtered out by the strategy.
+              const beforeEvidence = result.before.sections.flatMap((section) => section.points).find((point) => point.id === key)?.evidenceIds ?? []
+              const filtered = result.after.filteredEvidence.find((entry) => beforeEvidence.includes(entry.evidenceId))
+              const reason = omitted?.reason ?? (filtered ? `支撑该要点的帖子被筛除：${filtered.reason}` : '该要点未出现在改动后输出中。')
+              const rule = omitted?.ruleId ?? filtered?.ruleId
+              return <div key={key} className="cv-cause is-bad" title={rule ? `触发规则：${rule}` : undefined}><strong>遗漏：{labelOf(key)}</strong><span>{reason}</span></div>
+            })}
+            {gained.map((key) => <div key={key} className="cv-cause is-good"><strong>新增覆盖：{labelOf(key)}</strong><span>该要点在改动后获得了可追溯来源。</span></div>)}
+            {qualityLines.map((line) => <div key={line.text} className={`cv-cause is-${line.tone}`}><strong>{line.label}</strong><span>{line.text}</span></div>)}
+            {lost.length === 0 && gained.length === 0 && qualityLines.length === 0 && <p className="cv-why-none">期望要点覆盖与引用质量均未变化。</p>}
+          </section>
+
+          {fixable && !resolved && (
+            <section className="cv-fix">
+              <h4><span className="cv-step">03</span>修复适用范围并重跑</h4>
+              <p>回归样例属于用法类，而「按肤质分组」的适用范围包含用法类。建议仅收窄适用范围，不手工修改结果。</p>
+              <div className="cv-scope"><div><small>本次运行范围</small><strong>{previousScope.join('、') || '未选择'}</strong></div><ArrowRight size={15} /><div><small>建议范围</small><strong>选购类</strong></div></div>
+              <button type="button" className="cv-button cv-button-primary" onClick={alreadyNarrowed ? onRun : onNarrowAndRerun}><RefreshCw size={14} />{alreadyNarrowed ? '按当前范围重跑' : '收窄到选购类并重跑'}</button>
+            </section>
+          )}
+
+          {resolved && <section className="cv-resolved"><CircleCheck size={16} /><span>目标回归已在本次重跑中消失：「等待成膜」重新进入改动后输出。</span></section>}
         </div>
-        <small className="coverage-annotation-note">{sample.annotationNote}</small>
-      </section>
 
-      <section className="coverage-detail-block">
-        <div className="coverage-detail-step"><span>02</span><h4>改动前 / 改动后输出</h4></div>
-        <div className="coverage-answer-compare">
-          <AnswerSide title="改动前 · 固定基线" answer={result.before} missingKeys={result.missedBefore} />
-          <AnswerSide title="改动后 · 本次运行配置" answer={result.after} missingKeys={result.missedAfter} />
-        </div>
-        <div className="coverage-detail-metrics"><span>改前覆盖 {result.coveredBefore.length}/{result.expectedPointKeys.length}</span><span>改后覆盖 {result.coveredAfter.length}/{result.expectedPointKeys.length}</span><span>可追溯 {formatRate(result.traceableRateAfter)}</span><span>陈旧 {result.staleCountAfter}</span><span>未标注商业内容 {result.sponsoredUnlabeledAfter}</span></div>
-      </section>
-
-      <section className={`coverage-cause-block ${result.delta === 'regressed' ? 'is-regression' : 'is-explanation'}`}>
-        <div className="coverage-detail-step"><span>03</span><h4>{result.delta === 'regressed' ? '回归原因' : '变化解释'}</h4></div>
-        <p>{result.reason}</p>
-        {result.missedAfter.map((key) => {
-          const omitted = result.after.omittedPoints.find((point) => point.pointKey === key)
-          const expected = sample.expectedPoints.find((point) => point.key === key)
-          return <div className="coverage-omission" key={key}><strong>遗漏：{expected?.label ?? key}</strong><span>{omitted?.reason ?? '此期望要点未出现在改动后输出中。'}</span>{omitted && <small>触发规则：{omitted.ruleId} · 关联 mock 来源 {omitted.evidenceIds.length} 条</small>}</div>
-        })}
-        {result.missedAfter.length === 0 && <div className="coverage-restored-line"><Check size={15} />改动后所有独立标注要点均有可追溯引用。</div>}
-      </section>
-
-      {fixableRegression && (
-        <section className="coverage-fix-card">
-          <div className="coverage-detail-step"><span>04</span><h4>修复适用范围并重跑</h4></div>
-          <p>回归样例是“用法类”，而按肤质分组当前范围同时包含“选购类、用法类”。只收窄范围，不手工改结果。</p>
-          <div className="coverage-scope-diff"><div><small>本次运行范围</small><strong>{scopeBefore}</strong></div><ArrowRight size={16} /><div><small>建议范围</small><strong>选购类</strong></div></div>
-          <p className="coverage-current-scope">当前草稿范围：{scopeNow}{isAlreadyNarrowed ? '（已收窄，可直接重跑）' : ''}</p>
-          <button type="button" className="coverage-button coverage-button-primary" onClick={isAlreadyNarrowed ? onRun : onNarrowAndRerun}><RefreshCw size={15} />{isAlreadyNarrowed ? '按当前窄范围重跑 8 条' : '收窄到选购类并重跑'}</button>
-        </section>
-      )}
-
-      {resolvedRegression && (
-        <section className="coverage-resolved-card"><CircleCheck size={17} /><div><strong>目标回归已在本次重跑中消失</strong><span>“等待成膜”重新进入改动后输出；当前判断来自配置版本 {run.configVersion}。</span></div></section>
-      )}
-
-      <div className="coverage-detail-footer">
-        <span>{isStale ? '当前草稿已变更；本详情仍保留最近一次运行快照。' : '结果绑定本次配置版本；修改策略后需要重新运行。'}</span>
-        {run.summary.regressed === 0 && !isStale
-          ? <button type="button" className="coverage-button coverage-button-primary" onClick={onContinue}>继续跨场景复用 <ArrowRight size={15} /></button>
-          : <button type="button" className="coverage-button coverage-button-quiet" onClick={() => useDemoStore.getState().navigate('strategy')}>回到策略配置调整 <ArrowRight size={15} /></button>}
+        <aside className="cv-preview" aria-label="答案卡预览">
+          <AnswerPreview
+            before={result.before}
+            after={result.after}
+            queryText={sample.text}
+            mode={previewMode}
+            onModeChange={setPreviewMode}
+            onOpenSource={setSourcePoint}
+            isDraftModified
+            labelSponsored={previewMode === 'before' ? BASELINE_CONFIG.evidence.labelSponsored : runSnapshot.evidence.labelSponsored}
+            posts={SKINCARE_POSTS}
+            embedded
+          />
+        </aside>
       </div>
+
+      <footer className="cv-detail-foot">
+        {backButtons}
+        {!hasRegression && !isStale && <button type="button" className="cv-button cv-button-primary" onClick={onContinue}>复用到同类新场景 <ArrowRight size={14} /></button>}
+      </footer>
+
+      {sourcePoint && <EvidenceDrawer point={sourcePoint} answer={selectedAnswer} posts={SKINCARE_POSTS} onClose={() => setSourcePoint(null)} />}
     </article>
   )
 }
 
-function AnswerSide({ title, answer, missingKeys }: { title: string; answer: RenderedAnswer; missingKeys: string[] }) {
-  const points = answer.sections.flatMap((section) => section.points.map((point) => ({ ...point, sectionTitle: section.title })))
-  const missing = new Set(missingKeys)
-  const omissions = answer.omittedPoints.filter((point) => missing.has(point.pointKey))
-  return (
-    <div className="coverage-answer-side">
-      <div className="coverage-answer-side-title"><strong>{title}</strong><small>{points.length} 个输出要点</small></div>
-      {points.length > 0 ? <div className="coverage-answer-points">{points.map((point) => <div className={`coverage-answer-point is-${point.change}`} key={`${point.sectionTitle}-${point.id}`}>
-        <span className={`coverage-change-tag is-${point.change}`}>{point.change === 'added' ? '新增' : point.change === 'removed' ? '移除' : '保留'}</span>
-        <span>{point.text}</span><small>{point.sectionTitle} · 引用 {point.evidenceIds.length} 条</small>
-      </div>)}</div> : <div className="coverage-no-points">本次输出没有可展示的答案要点。</div>}
-      {omissions.map((point) => <div className="coverage-omitted-point" key={point.pointKey}><strong>未进入输出：{point.text}</strong><span>{point.reason}</span></div>)}
-      <div className="coverage-answer-footer"><span>引用可追溯 {answer.sections.flatMap((section) => section.points).reduce((sum, point) => sum + point.evidenceIds.length, 0)} 条</span><span>{answer.footer.noteCount} 笔记 · {answer.footer.commentCount} 评论</span></div>
-    </div>
-  )
+function Mark({ ok }: { ok: boolean }) {
+  return <span className={`cv-mark ${ok ? 'is-ok' : 'is-miss'}`} aria-label={ok ? '已答出' : '未答出'}>{ok ? <Check size={13} /> : <X size={13} />}</span>
 }
 
 export { CoveragePage }

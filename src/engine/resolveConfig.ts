@@ -7,6 +7,7 @@ const CONFIG_PATHS: ConfigPath[] = [
   'evidence.freshnessDays',
   'evidence.includeCounterEvidence',
   'evidence.labelSponsored',
+  'evidence.allowSponsored',
   'presentation.groupByPersona',
   'presentation.groupByPersonaAppliesTo',
   'presentation.showPitfall',
