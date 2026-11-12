@@ -1,0 +1,5 @@
+export { resolveConfig } from './resolveConfig'
+export { detectConflicts } from './detectConflicts'
+export { renderAnswer } from './renderAnswer'
+export { getConfigVersion, runCoverageCheck } from './runCoverageCheck'
+export { reuseReport } from './reuseReport'
